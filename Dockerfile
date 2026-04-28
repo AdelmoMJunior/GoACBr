@@ -47,7 +47,7 @@ RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
     chown -R goacbr:goacbr /app
 
 # Copy ACBrLib shared library
-COPY --chown=goacbr:goacbr material/acbrlib/dep/Schemas /app/data/Schemas
+#COPY --chown=goacbr:goacbr material/acbrlib/dep/Schemas /app/data/Schemas
 # NOTE: Place libacbrnfe64.so in ./lib/ before building
 # COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 

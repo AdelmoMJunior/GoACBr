@@ -43,7 +43,7 @@ services:
   # ============================================================================
   api:
     build:
-      context: .
+      context: https://github.com/AdelmoMJunior/GoACBr.git
       dockerfile: Dockerfile
     container_name: goacbr-api
     restart: unless-stopped
