@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,11 +52,13 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequest, ipAddres
 	sessionID := uuid.New()
 	tokens, err := s.tokenSvc.GenerateTokenPair(user.ID, user.Email, sessionID)
 	if err != nil {
+		slog.Error("Failed to generate tokens", "error", err, "user_id", user.ID)
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	refreshHash, err := auth.GenerateRandomHash(tokens.RefreshToken)
 	if err != nil {
+		slog.Error("Failed to hash refresh token", "error", err)
 		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
 	}
 
@@ -71,6 +74,7 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequest, ipAddres
 	}
 
 	if err := s.sessionRepo.CreateSession(ctx, session); err != nil {
+		slog.Error("Failed to create session in DB", "error", err, "user_id", user.ID)
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
