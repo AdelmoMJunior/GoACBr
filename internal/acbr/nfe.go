@@ -254,19 +254,4 @@ func (hd *Handle) ImprimirPDF() error {
 	return nil
 }
 
-// ObterCaminhoGerado returns the path of the last generated file (XML or PDF).
-func (hd *Handle) ObterCaminhoGerado() (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 
-	var bufferSize C.int = 4096
-	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
-	defer C.free(unsafe.Pointer(buffer))
-
-	res := C.NFE_ObterCaminhoGerado(hd.h, buffer, &bufferSize)
-	if res != 0 {
-		return "", libError(hd.h, "failed to get generated path")
-	}
-
-	return readBuffer(buffer), nil
-}

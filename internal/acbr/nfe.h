@@ -34,7 +34,6 @@ int NFE_DistribuicaoDFePorNSU(handle h, int acUFAutor, const char* eCNPJCPF, con
 /* --- PDFs e XMLs --- */
 int NFE_ImprimirPDF(handle h);
 int NFE_ObterXml(handle h, int aIndex, char* sResposta, int* esTamanho);
-int NFE_ObterCaminhoGerado(handle h, char* sResposta, int* esTamanho);
 
 /* --- Status e Último Retorno --- */
 int NFE_UltimoRetorno(handle h, char* sMensagem, int* esTamanho);
