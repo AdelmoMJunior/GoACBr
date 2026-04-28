@@ -60,8 +60,8 @@ RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
 # NOTE: Place libacbrnfe64.so in ./lib/ before building
 COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 
-# Copy binary from builder
-COPY --from=builder --chown=goacbr:goacbr /build/bin/goacbr-api /app/goacbr-api
+COPY lib/libacbrnfe64.so /usr/local/lib/
+RUN ldconfig
 
 # Copy migrations
 COPY --chown=goacbr:goacbr migrations /app/migrations
