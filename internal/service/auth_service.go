@@ -66,7 +66,8 @@ func (s *authService) Login(ctx context.Context, req *dto.LoginRequest, ipAddres
 		IPAddress:        ipAddress,
 		UserAgent:        userAgent,
 		IsRevoked:        false,
-		ExpiresAt:        time.Now().Add(7 * 24 * time.Hour), // Must match config refresh TTL
+		ExpiresAt:        time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt:        time.Now(),
 	}
 
 	if err := s.sessionRepo.CreateSession(ctx, session); err != nil {
@@ -137,6 +138,7 @@ func (s *authService) Refresh(ctx context.Context, req *dto.RefreshRequest, ipAd
 		UserAgent:        userAgent,
 		IsRevoked:        false,
 		ExpiresAt:        time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt:        time.Now(),
 	}
 
 	if err := s.sessionRepo.CreateSession(ctx, newSession); err != nil {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -40,6 +41,8 @@ func (s *userService) Create(ctx context.Context, req *dto.UserCreateRequest) (*
 		FullName:     req.FullName,
 		Phone:        req.Phone,
 		IsActive:     true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	if err := s.repo.Create(ctx, user); err != nil {
