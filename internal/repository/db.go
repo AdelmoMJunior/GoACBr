@@ -15,6 +15,7 @@ import (
 	"github.com/AdelmoMJunior/GoACBr/internal/config"
 )
 
+//go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 // DBWrapper wraps the sqlx.DB connection.
