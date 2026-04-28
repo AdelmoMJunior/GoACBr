@@ -1,0 +1,85 @@
+services:
+  # ============================================================================
+  # PostgreSQL 16
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: goacbr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goacbr
+      POSTGRES_PASSWORD: changeme_db_password
+      POSTGRES_DB: goacbr
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goacbr -d goacbr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # Redis 7
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: goacbr-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # GoACBr API
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goacbr-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./lib:/app/lib:ro
+      - ./data:/app/data:ro
+      - applogs:/app/logs
+
+  # ============================================================================
+  # Database Migrations (run once)
+  # ============================================================================
+  migrate:
+    image: migrate/migrate:v4.17.0
+    container_name: goacbr-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    command: >
+      -path=/migrations
+      -database=postgres://goacbr:changeme_db_password@postgres:5432/goacbr?sslmode=disable
+      up
+    profiles:
+      - migrate
+
+volumes:
+  pgdata:
+  redisdata:
+  applogs:

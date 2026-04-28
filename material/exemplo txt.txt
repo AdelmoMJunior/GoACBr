@@ -1,0 +1,4 @@
+Inicialize: NFE_Inicializar('C:\ACBr\ACBrLib.ini','')
+Carregue: NFE_CarregarINI('NFe_modelo55_completo.ini')
+Assine, valide, envie: NFE_Assinar(); NFE_Validar(); NFE_Enviar(1,0,1,0,...)
+Evento: NFE_CarregarEventoINI('evento_cancelamento.ini'); NFE_EnviarEvento(1,...)

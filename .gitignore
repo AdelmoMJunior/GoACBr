@@ -1,0 +1,57 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/build/
+
+# Test
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Dependencies
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+
+# ACBrLib runtime
+/data/cert.pfx
+/data/*.pfx
+acbrlib.ini
+
+# Docker volumes
+/pgdata/
+/redisdata/
+
+# Swagger generated (regenerable)
+/docs/docs.go
+/docs/swagger.json
+/docs/swagger.yaml
+
+# Temporary
+/tmp/
+
+#material
+/material

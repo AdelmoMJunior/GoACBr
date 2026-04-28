@@ -1,0 +1,13 @@
+; INUTILIZACAO - ACBrLibNFe
+; Metodo: NFE_Inutilizar
+NFE_Inutilizar(
+  ACNPJ=11222333000144,
+  AJustificativa='Falha na sequencia de numeracao da impressora',
+  Ano=2026,
+  Modelo=55,
+  Serie=1,
+  NumeroInicial=100,
+  NumeroFinal=105,
+  sResposta,
+  esTamanho
+)
