@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -73,7 +74,7 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 	}
 
 	// AcUFAutor is usually the UF code of the company or SEFAZ Nacional (91)
-	ufAutor := 91 
+	ufAutor := 91
 
 	respStr, err := hd.DistribuicaoDFePorUltNSU(ufAutor, comp.CNPJ, ultNSU)
 	if err != nil {
@@ -108,15 +109,15 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 	sections := getSections(respStr)
 	for _, sec := range sections {
 		// DFe distribution sections start with ResNFe, ResEvento, ProcNFe, etc.
-		if strings.HasPrefix(sec, "ResNFe") || strings.HasPrefix(sec, "ResEvento") || 
-		   strings.HasPrefix(sec, "ProcNFe") || strings.HasPrefix(sec, "ProcEvento") {
-			
+		if strings.HasPrefix(sec, "ResNFe") || strings.HasPrefix(sec, "ResEvento") ||
+			strings.HasPrefix(sec, "ProcNFe") || strings.HasPrefix(sec, "ProcEvento") {
+
 			nsu := extractFromINI(respStr, sec, "NSU")
 			chave := extractFromINI(respStr, sec, "chNFe")
 			if chave == "UNKNOWN" {
-				chave = extractFromINI(respStr, sec, "chNFe") 
+				chave = extractFromINI(respStr, sec, "chNFe")
 			}
-			
+
 			doc := dto.DistributionDoc{
 				NSU:    nsu,
 				Chave:  chave,
@@ -131,29 +132,35 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 				NSU:        nsu,
 				ChaveNFe:   chave,
 				SchemaType: sec,
-				
+
 				EmitCNPJCPF: extractFromINI(respStr, sec, "CNPJCPF"),
 				EmitNome:    extractFromINI(respStr, sec, "xNome"),
 				EmitIE:      extractFromINI(respStr, sec, "IE"),
 				DestCNPJCPF: extractFromINI(respStr, sec, "dest_CNPJCPF"),
-				
-				TpEvento:    extractFromINI(respStr, sec, "tpEvento"),
-				DescEvento:  extractFromINI(respStr, sec, "xEvento"),
-				Protocolo:   extractFromINI(respStr, sec, "nProt"),
-				
-				CreatedAt:   time.Now(),
+
+				TpEvento:   extractFromINI(respStr, sec, "tpEvento"),
+				DescEvento: extractFromINI(respStr, sec, "xEvento"),
+				Protocolo:  extractFromINI(respStr, sec, "nProt"),
+
+				CreatedAt: time.Now(),
 			}
 
 			// Conversão de valores com tratamento de ponteiros
 			vNF := parseINIDecimal(extractFromINI(respStr, sec, "vNF"))
-			if !vNF.IsZero() { dbDoc.TotVNF = &vNF }
-			
+			if !vNF.IsZero() {
+				dbDoc.TotVNF = &vNF
+			}
+
 			vICMS := parseINIDecimal(extractFromINI(respStr, sec, "vICMS"))
-			if !vICMS.IsZero() { dbDoc.TotVICMS = &vICMS }
+			if !vICMS.IsZero() {
+				dbDoc.TotVICMS = &vICMS
+			}
 
 			vST := parseINIDecimal(extractFromINI(respStr, sec, "vST"))
-			if !vST.IsZero() { dbDoc.TotVST = &vST }
-			
+			if !vST.IsZero() {
+				dbDoc.TotVST = &vST
+			}
+
 			// Datas
 			if dhEmiStr := extractFromINI(respStr, sec, "dhEmi"); dhEmiStr != "UNKNOWN" {
 				t := parseINITime(dhEmiStr)
@@ -238,13 +245,13 @@ func (s *distributionService) GetControl(ctx context.Context, companyID uuid.UUI
 	}
 
 	return &dto.DistributionControlResponse{
-		CompanyID:    ctrl.CompanyID.String(),
-		LastNSU:      ctrl.LastNSU,
-		MaxNSU:       ctrl.MaxNSU,
-		LastQueryAt:  ctrl.LastQueryAt,
-		IsRunning:    ctrl.IsRunning,
-		Status:       ctrl.Status,
-		ErrorMessage: ctrl.ErrorMessage,
+		CompanyID:        ctrl.CompanyID.String(),
+		LastNSU:          ctrl.LastNSU,
+		MaxNSU:           ctrl.MaxNSU,
+		LastQueryAt:      ctrl.LastQueryAt,
+		IsRunning:        ctrl.IsRunning,
+		Status:           ctrl.Status,
+		ErrorMessage:     ctrl.ErrorMessage,
 		NextAllowedQuery: &next,
 	}, nil
 }
