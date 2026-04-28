@@ -87,9 +87,9 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	compSvc := service.NewCompanyService(compRepo, certRepo, cryptoSvc)
 	certSvc := service.NewCertificateService(certRepo, cryptoSvc)
-	nfeSvc := service.NewNFeService(compRepo, certRepo, invRepo, pool, storageProv)
-	evtSvc := service.NewEventService(compRepo, certRepo, invRepo, pool)
-	distSvc := service.NewDistributionService(compRepo, certRepo, distRepo, pool)
+	nfeSvc := service.NewNFeService(compRepo, certRepo, invRepo, pool, storageProv, cryptoSvc)
+	evtSvc := service.NewEventService(compRepo, certRepo, invRepo, pool, cryptoSvc)
+	distSvc := service.NewDistributionService(compRepo, certRepo, distRepo, pool, cryptoSvc)
 	invSvc := service.NewInvoiceService(invRepo)
 	// emailSvc := service.NewEmailService(compRepo, cryptoSvc)
 

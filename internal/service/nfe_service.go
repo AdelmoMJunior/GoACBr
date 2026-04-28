@@ -1,15 +1,16 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
+	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
 	"github.com/AdelmoMJunior/GoACBr/internal/domain"
 	"github.com/AdelmoMJunior/GoACBr/internal/dto"
 	"github.com/AdelmoMJunior/GoACBr/internal/repository"
@@ -23,11 +24,12 @@ type NFeService interface {
 }
 
 type nfeService struct {
-	compRepo   repository.CompanyRepository
-	certRepo   repository.CertificateRepository
-	invRepo    repository.InvoiceRepository
-	pool       *acbr.HandlePool
-	storage    storage.Provider
+	compRepo  repository.CompanyRepository
+	certRepo  repository.CertificateRepository
+	invRepo   repository.InvoiceRepository
+	pool      *acbr.HandlePool
+	storage   storage.Provider
+	cryptoSvc crypto.Service
 }
 
 func NewNFeService(
@@ -36,13 +38,15 @@ func NewNFeService(
 	invRepo repository.InvoiceRepository,
 	pool *acbr.HandlePool,
 	storage storage.Provider,
+	cryptoSvc crypto.Service,
 ) NFeService {
 	return &nfeService{
-		compRepo: compRepo,
-		certRepo: certRepo,
-		invRepo:  invRepo,
-		pool:     pool,
-		storage:  storage,
+		compRepo:  compRepo,
+		certRepo:  certRepo,
+		invRepo:   invRepo,
+		pool:      pool,
+		storage:   storage,
+		cryptoSvc: cryptoSvc,
 	}
 }
 
@@ -56,7 +60,7 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 
 	// 2. Configure Handle if needed
 	if hd.ConfiguredFor != companyID {
-		err = configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo)
+		err = configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc)
 		if err != nil {
 			return nil, err
 		}
@@ -85,17 +89,26 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 		return nil, fmt.Errorf("failed to send: %w", err)
 	}
 
-	// 6. Parse response (in a real app, parse the INI response from ACBr)
-	// Here we mock the parsing for scaffold purposes.
+	// 6. Get signed XML from ACBr
+	xmlContent, err := hd.ObterXml(0)
+	if err != nil {
+		slog.Warn("Failed to get signed XML from ACBr", "error", err)
+	}
+
+	// 7. Parse response
 	chave := extractFromINI(respStr, "ChaveDFe")
 	status := extractFromINI(respStr, "xMotivo")
-	cStat := 100 // Mock
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
 
-	// 7. Store XML in B2 (Assume we extract XML from ACBr, here we just use respStr as mock)
+	// 8. Store XML in B2
 	xmlKey := fmt.Sprintf("%s/%s/%s-nfe.xml", companyID.String(), time.Now().Format("2006/01"), chave)
-	_, _ = s.storage.Upload(ctx, xmlKey, bytes.NewReader([]byte("<xml>mock</xml>")), "application/xml")
+	if xmlContent != "" {
+		_, _ = s.storage.Upload(ctx, xmlKey, strings.NewReader(xmlContent), "application/xml")
+	}
 
-	// 8. Save Invoice to DB
+	// 9. Save Invoice to DB
 	inv := &domain.Invoice{
 		ID:        uuid.New(),
 		CompanyID: companyID,
@@ -122,7 +135,7 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo); err != nil {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -141,17 +154,4 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 		Chave:  req.Chave,
 		Status: status,
 	}, nil
-}
-
-// helper to extract fields from ACBr INI response
-func extractFromINI(content, key string) string {
-	lines := strings.Split(content, "\n")
-	prefix := key + "="
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, prefix) {
-			return strings.TrimPrefix(l, prefix)
-		}
-	}
-	return "UNKNOWN"
 }

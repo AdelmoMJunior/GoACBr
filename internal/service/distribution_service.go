@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
+	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
 	"github.com/AdelmoMJunior/GoACBr/internal/domain"
 	"github.com/AdelmoMJunior/GoACBr/internal/dto"
 	"github.com/AdelmoMJunior/GoACBr/internal/repository"
@@ -20,10 +22,11 @@ type DistributionService interface {
 }
 
 type distributionService struct {
-	compRepo repository.CompanyRepository
-	certRepo repository.CertificateRepository
-	distRepo repository.DistributionRepository
-	pool     *acbr.HandlePool
+	compRepo  repository.CompanyRepository
+	certRepo  repository.CertificateRepository
+	distRepo  repository.DistributionRepository
+	pool      *acbr.HandlePool
+	cryptoSvc crypto.Service
 }
 
 func NewDistributionService(
@@ -31,12 +34,14 @@ func NewDistributionService(
 	certRepo repository.CertificateRepository,
 	distRepo repository.DistributionRepository,
 	pool *acbr.HandlePool,
+	cryptoSvc crypto.Service,
 ) DistributionService {
 	return &distributionService{
-		compRepo: compRepo,
-		certRepo: certRepo,
-		distRepo: distRepo,
-		pool:     pool,
+		compRepo:  compRepo,
+		certRepo:  certRepo,
+		distRepo:  distRepo,
+		pool:      pool,
+		cryptoSvc: cryptoSvc,
 	}
 }
 
@@ -62,7 +67,7 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo); err != nil {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -75,8 +80,11 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 		return nil, err
 	}
 
-	cStat := 138 // Mock parse
 	status := extractFromINI(respStr, "xMotivo")
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
+
 	maxNsu := extractFromINI(respStr, "maxNSU")
 	ultNsuRet := extractFromINI(respStr, "ultNSU")
 
@@ -120,7 +128,7 @@ func (s *distributionService) QueryByNSU(ctx context.Context, companyID uuid.UUI
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo); err != nil {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -132,9 +140,12 @@ func (s *distributionService) QueryByNSU(ctx context.Context, companyID uuid.UUI
 	}
 
 	status := extractFromINI(respStr, "xMotivo")
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
 
 	return &dto.DistributionQueryResponse{
-		CStat:   138,
+		CStat:   cStat,
 		XMotivo: status,
 	}, nil
 }

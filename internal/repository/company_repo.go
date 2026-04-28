@@ -20,6 +20,7 @@ type CompanyRepository interface {
 	LinkUser(ctx context.Context, userID, companyID uuid.UUID) error
 	GetUsersByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.User, error)
 	GetCompaniesByUser(ctx context.Context, userID uuid.UUID) ([]domain.Company, error)
+	GetCompaniesEligibleForSync(ctx context.Context) ([]domain.Company, error)
 }
 
 type companyRepository struct {
@@ -135,6 +136,28 @@ func (r *companyRepository) GetCompaniesByUser(ctx context.Context, userID uuid.
 		WHERE uc.user_id = $1
 	`
 	err := r.db.SelectContext(ctx, &companies, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	return companies, nil
+}
+
+func (r *companyRepository) GetCompaniesEligibleForSync(ctx context.Context) ([]domain.Company, error) {
+	var companies []domain.Company
+	query := `
+		SELECT DISTINCT c.*
+		FROM companies c
+		JOIN certificates cert ON c.id = cert.company_id
+		LEFT JOIN distribution_controls dc ON c.id = dc.company_id
+		WHERE c.is_active = true
+		  AND cert.valid_until > NOW()
+		  AND (
+			  dc.last_query_at IS NULL 
+			  OR dc.last_query_at < NOW() - INTERVAL '1 hour'
+			  OR dc.last_nsu != dc.max_nsu
+		  )
+	`
+	err := r.db.SelectContext(ctx, &companies, query)
 	if err != nil {
 		return nil, err
 	}

@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
+	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
 	"github.com/AdelmoMJunior/GoACBr/internal/domain"
 	"github.com/AdelmoMJunior/GoACBr/internal/dto"
 	"github.com/AdelmoMJunior/GoACBr/internal/repository"
@@ -19,10 +21,11 @@ type EventService interface {
 }
 
 type eventService struct {
-	compRepo repository.CompanyRepository
-	certRepo repository.CertificateRepository
-	invRepo  repository.InvoiceRepository
-	pool     *acbr.HandlePool
+	compRepo  repository.CompanyRepository
+	certRepo  repository.CertificateRepository
+	invRepo   repository.InvoiceRepository
+	pool      *acbr.HandlePool
+	cryptoSvc crypto.Service
 }
 
 func NewEventService(
@@ -30,12 +33,14 @@ func NewEventService(
 	certRepo repository.CertificateRepository,
 	invRepo repository.InvoiceRepository,
 	pool *acbr.HandlePool,
+	cryptoSvc crypto.Service,
 ) EventService {
 	return &eventService{
-		compRepo: compRepo,
-		certRepo: certRepo,
-		invRepo:  invRepo,
-		pool:     pool,
+		compRepo:  compRepo,
+		certRepo:  certRepo,
+		invRepo:   invRepo,
+		pool:      pool,
+		cryptoSvc: cryptoSvc,
 	}
 }
 
@@ -47,7 +52,7 @@ func (s *eventService) Cancel(ctx context.Context, companyID uuid.UUID, req *dto
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo); err != nil {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -58,9 +63,10 @@ func (s *eventService) Cancel(ctx context.Context, companyID uuid.UUID, req *dto
 	}
 
 	status := extractFromINI(respStr, "xMotivo")
-	cStat := 101 // Cancelado (mock parsing)
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
 
-	// In a real app, parse protocol and other details from response
 	proto := extractFromINI(respStr, "nProt")
 
 	// Store Event in DB
@@ -104,17 +110,21 @@ func (s *eventService) CCe(ctx context.Context, companyID uuid.UUID, req *dto.CC
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo); err != nil {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
 
-	// For CCe, ACBr uses NFE_CartaCorrecao
-	// We didn't bind it in nfe.go yet, but let's mock it using ACBr methods if it was bound
-	// respStr := "mock_cce_response" // err := hd.CartaCorrecao(req.Chave, req.Correcao, req.CNPJCPF, req.Lote)
+	respStr, err := hd.CartaCorrecao(req.Chave, req.Correcao, req.CNPJCPF, req.Lote)
+	if err != nil {
+		return nil, err
+	}
 
-	status := "Carta de Correcao Registrada"
-	cStat := 135
+	status := extractFromINI(respStr, "xMotivo")
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
+	proto := extractFromINI(respStr, "nProt")
 
 	event := &domain.InvoiceEvent{
 		ID:            uuid.New(),
@@ -140,14 +150,38 @@ func (s *eventService) CCe(ctx context.Context, companyID uuid.UUID, req *dto.CC
 		NSeqEvento: req.NSeqEvento,
 		CStat:      cStat,
 		XMotivo:    status,
+		Protocolo:  proto,
 		DHEvento:   time.Now(),
 	}, nil
 }
 
 func (s *eventService) Inutilizacao(ctx context.Context, companyID uuid.UUID, req *dto.InutilizacaoRequest) (*dto.InutilizacaoResponse, error) {
-	// similar logic with ACBr NFE_Inutilizar
-	cStat := 102
-	status := "Inutilizacao de numero homologado"
+	comp, err := s.compRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	hd, err := s.pool.GetHandle(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer s.pool.ReleaseHandle(hd)
+
+	if hd.ConfiguredFor != companyID {
+		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+			return nil, err
+		}
+	}
+
+	respStr, err := hd.Inutilizar(comp.CNPJ, req.Justificativa, req.Ano, int(req.Modelo), req.Serie, req.NumInicial, req.NumFinal)
+	if err != nil {
+		return nil, err
+	}
+
+	status := extractFromINI(respStr, "xMotivo")
+	cStatStr := extractFromINI(respStr, "cStat")
+	cStat := 0
+	fmt.Sscanf(cStatStr, "%d", &cStat)
 
 	inut := &domain.InvoiceInutilizacao{
 		ID:            uuid.New(),

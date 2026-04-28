@@ -36,15 +36,11 @@ func NewDistributionWorker(
 func (w *DistributionWorker) RunOnce(ctx context.Context) {
 	slog.Info("Starting Distribution Worker pass")
 
-	// In a real application, we would query the database for companies that:
-	// 1. Are Active
-	// 2. Have a valid Certificate
-	// 3. Haven't been queried in the last 1 hour (SEFAZ rule)
-	
-	// For scaffold, we mock fetching a list of companies.
-	// You should implement a custom repository query `GetCompaniesEligibleForSync`.
-	// For now, we simulate with an empty list.
-	var companies []domain.Company 
+	companies, err := w.compRepo.GetCompaniesEligibleForSync(ctx)
+	if err != nil {
+		slog.Error("Failed to fetch eligible companies for distribution sync", "error", err)
+		return
+	} 
 	
 	for _, comp := range companies {
 		if err := w.syncCompany(ctx, comp.ID); err != nil {

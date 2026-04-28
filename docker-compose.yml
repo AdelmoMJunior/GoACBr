@@ -56,6 +56,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./lib:/app/lib:ro
       - ./data:/app/data:ro
@@ -76,8 +78,6 @@ services:
       -path=/migrations
       -database=postgres://goacbr:changeme_db_password@postgres:5432/goacbr?sslmode=disable
       up
-    profiles:
-      - migrate
 
 volumes:
   pgdata:

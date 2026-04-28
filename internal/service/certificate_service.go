@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"io"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/pkcs12"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
 	"github.com/AdelmoMJunior/GoACBr/internal/domain"
@@ -38,11 +40,27 @@ func (s *certificateService) Upload(ctx context.Context, companyID uuid.UUID, pa
 		return nil, apperror.NewBadRequest("failed to read certificate file")
 	}
 
-	// In a real implementation, we would parse the PFX here using standard library x509
-	// to extract SubjectCN, SerialNumber, ValidFrom, and ValidUntil.
-	// For simplicity in this scaffold, we mock the extraction.
-	// We MUST encrypt the password and the PFX data (or store PFX in B2).
-	// Storing PFX in DB is fine if encrypted, since it's small.
+	// Extract metadata from PFX
+	// Note: ACBr generally uses PFX (PKCS#12)
+	blocks, err := pkcs12.ToPEM(pfxData, password)
+	if err != nil {
+		return nil, apperror.NewBadRequest("invalid certificate password or corrupted file")
+	}
+
+	var certX509 *x509.Certificate
+	for _, b := range blocks {
+		if b.Type == "CERTIFICATE" {
+			c, err := x509.ParseCertificate(b.Bytes)
+			if err == nil {
+				certX509 = c
+				break
+			}
+		}
+	}
+
+	if certX509 == nil {
+		return nil, apperror.NewBadRequest("no valid certificate found in PFX")
+	}
 
 	encPassword, err := s.cryptoSvc.Encrypt([]byte(password))
 	if err != nil {
@@ -57,12 +75,12 @@ func (s *certificateService) Upload(ctx context.Context, companyID uuid.UUID, pa
 	cert := &domain.Certificate{
 		ID:             uuid.New(),
 		CompanyID:      companyID,
-		PFXData:        []byte(encPfx), // Wait, Encrypt returns string now? Let's assume it returns string.
+		PFXData:        []byte(encPfx),
 		PFXPasswordEnc: encPassword,
-		SubjectCN:      "Mock Subject CN", // Replace with actual extraction
-		SerialNumber:   "1234567890",      // Replace with actual extraction
-		ValidFrom:      time.Now(),
-		ValidUntil:     time.Now().Add(365 * 24 * time.Hour), // 1 year
+		SubjectCN:      certX509.Subject.CommonName,
+		SerialNumber:   certX509.SerialNumber.String(),
+		ValidFrom:      certX509.NotBefore,
+		ValidUntil:     certX509.NotAfter,
 	}
 
 	if err := s.repo.Save(ctx, cert); err != nil {

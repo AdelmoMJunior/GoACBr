@@ -188,3 +188,69 @@ func (hd *Handle) DistribuicaoDFePorNSU(ufAutor int, cnpj, nsu string) (string, 
 
 	return readBuffer(buffer), nil
 }
+
+// ObterXml returns the XML content of a loaded NFe.
+func (hd *Handle) ObterXml(index int) (string, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	var bufferSize C.int = 1048576 // 1MB
+	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+	defer C.free(unsafe.Pointer(buffer))
+
+	res := C.NFE_ObterXml(hd.h, C.int(index), buffer, &bufferSize)
+	if res != 0 {
+		return "", libError(hd.h, fmt.Sprintf("failed to get XML for index %d", index))
+	}
+
+	return readBuffer(buffer), nil
+}
+
+// CartaCorrecao sends a CCe.
+func (hd *Handle) CartaCorrecao(chave, correcao, cnpj string, lote int) (string, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	var bufferSize C.int = 16384
+	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+	defer C.free(unsafe.Pointer(buffer))
+
+	cChave, free := allocCString(chave)
+	defer free()
+	cCorr, free2 := allocCString(correcao)
+	defer free2()
+	cCNPJ, free3 := allocCString(cnpj)
+	defer free3()
+
+	res := C.NFE_CartaCorrecao(hd.h, cChave, cCorr, cCNPJ, C.int(lote), buffer, &bufferSize)
+	if res != 0 {
+		return "", libError(hd.h, "failed to send CCe")
+	}
+
+	return readBuffer(buffer), nil
+}
+
+// Inutilizar sends an Inutilizacao.
+func (hd *Handle) Inutilizar(cnpj, justificativa string, ano, modelo, serie, nInicial, nFinal int) (string, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	var bufferSize C.int = 16384
+	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+	defer C.free(unsafe.Pointer(buffer))
+
+	cCNPJ, free := allocCString(cnpj)
+	defer free()
+	cJust, free2 := allocCString(justificativa)
+	defer free2()
+
+	res := C.NFE_Inutilizar(hd.h, cCNPJ, cJust, C.int(ano), C.int(modelo), C.int(serie), C.int(nInicial), C.int(nFinal), buffer, &bufferSize)
+	if res != 0 {
+		return "", libError(hd.h, "failed to inutilizar numbers")
+	}
+
+	return readBuffer(buffer), nil
+}
