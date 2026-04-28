@@ -17,9 +17,10 @@ import (
 
 // B2Storage implementation of Provider for Backblaze B2 (S3 compatible).
 type B2Storage struct {
-	client     *s3.Client
-	bucketName string
-	presignCli *s3.PresignClient
+	client       *s3.Client
+	bucketName   string
+	presignCli   *s3.PresignClient
+	publicCDNURL string
 }
 
 // NewB2Storage initializes a new B2 storage provider.
@@ -51,9 +52,10 @@ func NewB2Storage(cfg appconfig.B2Config) (*B2Storage, error) {
 	slog.Info("Initialized B2 Storage Provider", "bucket", cfg.BucketName, "endpoint", cfg.Endpoint)
 
 	return &B2Storage{
-		client:     client,
-		bucketName: cfg.BucketName,
-		presignCli: presignCli,
+		client:       client,
+		bucketName:   cfg.BucketName,
+		presignCli:   presignCli,
+		publicCDNURL: cfg.PublicCDNURL,
 	}, nil
 }
 
@@ -98,6 +100,10 @@ func (s *B2Storage) Delete(ctx context.Context, key string) error {
 }
 
 func (s *B2Storage) GetURL(ctx context.Context, key string) (string, error) {
+	if s.publicCDNURL != "" {
+		return fmt.Sprintf("%s/%s/%s", s.publicCDNURL, s.bucketName, key), nil
+	}
+
 	req, err := s.presignCli.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(key),

@@ -72,9 +72,10 @@ type EncryptionConfig struct {
 type B2Config struct {
 	KeyID      string
 	AppKey     string
-	BucketName string
-	Endpoint   string
-	Region     string
+	BucketName   string
+	Endpoint     string
+	Region       string
+	PublicCDNURL string
 }
 
 type CNPJWSConfig struct {
@@ -137,9 +138,10 @@ func Load() (*Config, error) {
 		B2: B2Config{
 			KeyID:      getEnv("B2_KEY_ID", ""),
 			AppKey:     getEnv("B2_APP_KEY", ""),
-			BucketName: getEnv("B2_BUCKET_NAME", "goacbr-storage"),
-			Endpoint:   getEnv("B2_ENDPOINT", ""),
-			Region:     getEnv("B2_REGION", "us-west-004"),
+			BucketName:   getEnv("B2_BUCKET_NAME", "goacbr-storage"),
+			Endpoint:     getEnv("B2_ENDPOINT", ""),
+			Region:       getEnv("B2_REGION", "us-west-004"),
+			PublicCDNURL: getEnv("B2_PUBLIC_CDN_URL", ""),
 		},
 		CNPJWS: CNPJWSConfig{
 			APIURL:   getEnv("CNPJWS_API_URL", "https://publica.cnpj.ws/cnpj"),

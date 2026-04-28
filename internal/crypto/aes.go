@@ -9,6 +9,17 @@ import (
 	"io"
 )
 
+// Service defines encryption operations.
+type Service interface {
+	Encrypt(plaintext []byte) (string, error)
+	Decrypt(ciphertext string) ([]byte, error)
+}
+
+// NewAESService initializes the AES service using AESEncryptor.
+func NewAESService(keyHex string) (Service, error) {
+	return NewAESEncryptor(keyHex)
+}
+
 // AESEncryptor provides AES-256-GCM encryption and decryption.
 type AESEncryptor struct {
 	key []byte

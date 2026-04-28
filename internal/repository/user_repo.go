@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/domain"
 	"github.com/AdelmoMJunior/GoACBr/pkg/apperror"
