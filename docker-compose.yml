@@ -56,28 +56,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./lib:/app/lib:ro
       - ./data:/app/data:ro
       - applogs:/app/logs
-
-  # ============================================================================
-  # Database Migrations (run once)
-  # ============================================================================
-  migrate:
-    image: migrate/migrate:v4.17.0
-    container_name: goacbr-migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./migrations:/migrations
-    command: >
-      -path=/migrations
-      -database=postgres://goacbr:changeme_db_password@postgres:5432/goacbr?sslmode=disable
-      up
 
 volumes:
   pgdata:

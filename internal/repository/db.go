@@ -2,14 +2,20 @@ package repository
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"log/slog"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/config"
 )
+
+var migrationsFS embed.FS
 
 // DBWrapper wraps the sqlx.DB connection.
 type DBWrapper struct {
@@ -33,7 +39,36 @@ func NewDB(cfg config.DatabaseConfig) (*DBWrapper, error) {
 
 	slog.Info("Connected to PostgreSQL database successfully", "host", cfg.Host, "db", cfg.Name)
 
-	return &DBWrapper{DB: db}, nil
+	wrapper := &DBWrapper{DB: db}
+	if err := wrapper.runMigrations(); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return wrapper, nil
+}
+
+func (db *DBWrapper) runMigrations() error {
+	d, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create iofs source: %w", err)
+	}
+
+	driver, err := postgres.WithInstance(db.DB.DB, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create database driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	slog.Info("Database migrations applied successfully")
+	return nil
 }
 
 // Transaction executes a function within a database transaction.
