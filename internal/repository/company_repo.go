@@ -148,7 +148,7 @@ func (r *companyRepository) GetCompaniesEligibleForSync(ctx context.Context) ([]
 		SELECT DISTINCT c.*
 		FROM companies c
 		JOIN certificates cert ON c.id = cert.company_id
-		LEFT JOIN distribution_controls dc ON c.id = dc.company_id
+		LEFT JOIN distribution_control dc ON c.id = dc.company_id
 		WHERE c.is_active = true
 		  AND cert.valid_until > NOW()
 		  AND (
