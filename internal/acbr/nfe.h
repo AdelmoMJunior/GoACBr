@@ -25,8 +25,8 @@ int NFE_Enviar(handle h, int aLote, int imprimir, int sincrono, int zipado, char
 
 /* --- Consultas e Eventos --- */
 int NFE_Consultar(handle h, const char* eChaveOuNFe, int aExtrairEventos, char* sResposta, int* esTamanho);
-int NFE_Cancelar(handle h, const char* eChave, const char* eJustificativa, const char* eCNPJ, int aLote, char* sResposta, int* esTamanho);
-int NFE_CartaCorrecao(handle h, const char* eChave, const char* eCorrecao, const char* eCNPJ, int aLote, char* sResposta, int* esTamanho);
+int NFE_CarregarEventoINI(handle h, const char* eArquivoOuString);
+int NFE_EnviarEvento(handle h, int aLote, char* sResposta, int* esTamanho);
 int NFE_Inutilizar(handle h, const char* eCNPJ, const char* eJustificativa, int aAno, int aModelo, int aSerie, int aNumeroInicial, int aNumeroFinal, char* sResposta, int* esTamanho);
 int NFE_DistribuicaoDFePorUltNSU(handle h, int acUFAutor, const char* eCNPJCPF, const char* eultNSU, char* sResposta, int* esTamanho);
 int NFE_DistribuicaoDFePorNSU(handle h, int acUFAutor, const char* eCNPJCPF, const char* eNSU, char* sResposta, int* esTamanho);

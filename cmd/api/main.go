@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/AdelmoMJunior/GoACBr/internal/server"
 	"github.com/AdelmoMJunior/GoACBr/internal/service"
 	"github.com/AdelmoMJunior/GoACBr/internal/storage"
+	"github.com/AdelmoMJunior/GoACBr/internal/worker"
 	"github.com/AdelmoMJunior/GoACBr/pkg/logger"
 )
 
@@ -102,6 +104,12 @@ func main() {
 	distH := handler.NewDistributionHandler(distSvc, compRepo, certRepo)
 	invH := handler.NewInvoiceHandler(invSvc, compRepo)
 	healthH := handler.NewHealthHandler()
+
+	// 10. Workers
+	distWorker := worker.NewDistributionWorker(compRepo, distRepo, distSvc)
+	scheduler := worker.NewScheduler(distWorker)
+	scheduler.Start(context.Background())
+	defer scheduler.Stop()
 
 	// 10. Router
 	r := chi.NewRouter()

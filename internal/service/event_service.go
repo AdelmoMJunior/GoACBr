@@ -57,17 +57,32 @@ func (s *eventService) Cancel(ctx context.Context, companyID uuid.UUID, req *dto
 		}
 	}
 
-	respStr, err := hd.Cancelar(req.Chave, req.Justificativa, req.CNPJCPF, req.Lote)
+	// 1. Gerar INI de Evento para Cancelamento
+	eventINI := fmt.Sprintf(`[EVENTO]
+idLote=%d
+[EVENTO001]
+chNFe=%s
+tpEvento=110111
+nSeqEvento=1
+dhEvento=%s
+xJust=%s
+CNPJ=%s`, req.Lote, req.Chave, time.Now().Format("02/01/2006 15:04:05"), req.Justificativa, req.CNPJCPF)
+
+	if err := hd.CarregarEventoINI(eventINI); err != nil {
+		return nil, err
+	}
+
+	respStr, err := hd.EnviarEvento(req.Lote)
 	if err != nil {
 		return nil, err
 	}
 
-	status := extractFromINI(respStr, "xMotivo")
-	cStatStr := extractFromINI(respStr, "cStat")
+	status := extractFromINI(respStr, "", "xMotivo")
+	cStatStr := extractFromINI(respStr, "", "cStat")
 	cStat := 0
 	fmt.Sscanf(cStatStr, "%d", &cStat)
 
-	proto := extractFromINI(respStr, "nProt")
+	proto := extractFromINI(respStr, "", "nProt")
 
 	// Store Event in DB
 	event := &domain.InvoiceEvent{
@@ -115,16 +130,31 @@ func (s *eventService) CCe(ctx context.Context, companyID uuid.UUID, req *dto.CC
 		}
 	}
 
-	respStr, err := hd.CartaCorrecao(req.Chave, req.Correcao, req.CNPJCPF, req.Lote)
+	// 1. Gerar INI de Evento para CCe
+	eventINI := fmt.Sprintf(`[EVENTO]
+idLote=%d
+[EVENTO001]
+chNFe=%s
+tpEvento=110110
+nSeqEvento=%d
+dhEvento=%s
+xCorr=%s
+CNPJ=%s`, req.Lote, req.Chave, req.NSeqEvento, time.Now().Format("02/01/2006 15:04:05"), req.Correcao, req.CNPJCPF)
+
+	if err := hd.CarregarEventoINI(eventINI); err != nil {
+		return nil, err
+	}
+
+	respStr, err := hd.EnviarEvento(req.Lote)
 	if err != nil {
 		return nil, err
 	}
 
-	status := extractFromINI(respStr, "xMotivo")
-	cStatStr := extractFromINI(respStr, "cStat")
+	status := extractFromINI(respStr, "", "xMotivo")
+	cStatStr := extractFromINI(respStr, "", "cStat")
 	cStat := 0
 	fmt.Sscanf(cStatStr, "%d", &cStat)
-	proto := extractFromINI(respStr, "nProt")
+	proto := extractFromINI(respStr, "", "nProt")
 
 	event := &domain.InvoiceEvent{
 		ID:            uuid.New(),
@@ -178,8 +208,8 @@ func (s *eventService) Inutilizacao(ctx context.Context, companyID uuid.UUID, re
 		return nil, err
 	}
 
-	status := extractFromINI(respStr, "xMotivo")
-	cStatStr := extractFromINI(respStr, "cStat")
+	status := extractFromINI(respStr, "", "xMotivo")
+	cStatStr := extractFromINI(respStr, "", "cStat")
 	cStat := 0
 	fmt.Sscanf(cStatStr, "%d", &cStat)
 

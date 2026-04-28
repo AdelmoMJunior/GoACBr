@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -96,9 +97,9 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 	}
 
 	// 7. Parse response
-	chave := extractFromINI(respStr, "ChaveDFe")
-	status := extractFromINI(respStr, "xMotivo")
-	cStatStr := extractFromINI(respStr, "cStat")
+	chave := extractFromINI(respStr, "", "ChaveDFe")
+	status := extractFromINI(respStr, "", "xMotivo")
+	cStatStr := extractFromINI(respStr, "", "cStat")
 	cStat := 0
 	fmt.Sscanf(cStatStr, "%d", &cStat)
 
@@ -116,7 +117,75 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 		Modelo:    int16(req.Modelo),
 		Status:    status,
 		XMLB2Key:  xmlKey,
+		
+		// Identificação
+		CNF:       extractFromINI(req.INIContent, "Ide", "cNF"),
+		NatOp:     extractFromINI(req.INIContent, "Ide", "natOp"),
+		Numero:    parseINIInt(extractFromINI(req.INIContent, "Ide", "nNF")),
+		Serie:     parseINIInt(extractFromINI(req.INIContent, "Ide", "serie")),
+		DHEmissao: parseINITime(extractFromINI(req.INIContent, "Ide", "dhEmi")),
+		TpNF:      int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "tpNF"))),
+		IDDest:    int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "idDest"))),
+		CMunFG:    extractFromINI(req.INIContent, "Ide", "cMunFG"),
+		TpImp:     int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "tpImp"))),
+		TpEmis:    int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "tpEmis"))),
+		TpAmb:     int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "tpAmb"))),
+		FinNFe:    int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "finNFe"))),
+		IndFinal:  int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "indFinal"))),
+		IndPres:   int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "indPres"))),
+		ProcEmi:   int16(parseINIInt(extractFromINI(req.INIContent, "Ide", "procEmi"))),
+		VerProc:   extractFromINI(req.INIContent, "Ide", "verProc"),
+		
+		// Destinatário
+		DestCNPJCPF: extractFromINI(req.INIContent, "Dest", "CNPJCPF"),
+		DestNome:    extractFromINI(req.INIContent, "Dest", "xNome"),
+		DestIE:      extractFromINI(req.INIContent, "Dest", "IE"),
+		DestEmail:   extractFromINI(req.INIContent, "Dest", "email"),
+		
+		// Totais
+		TotVBC:        parseINIDecimal(extractFromINI(req.INIContent, "Total", "vBC")),
+		TotVICMS:      parseINIDecimal(extractFromINI(req.INIContent, "Total", "vICMS")),
+		TotVICMSDeson: parseINIDecimal(extractFromINI(req.INIContent, "Total", "vICMSDeson")),
+		TotVFCP:       parseINIDecimal(extractFromINI(req.INIContent, "Total", "vFCP")),
+		TotVBCST:      parseINIDecimal(extractFromINI(req.INIContent, "Total", "vBCST")),
+		TotVST:        parseINIDecimal(extractFromINI(req.INIContent, "Total", "vST")),
+		TotVProd:      parseINIDecimal(extractFromINI(req.INIContent, "Total", "vProd")),
+		TotVFrete:     parseINIDecimal(extractFromINI(req.INIContent, "Total", "vFrete")),
+		TotVSeg:       parseINIDecimal(extractFromINI(req.INIContent, "Total", "vSeg")),
+		TotVDesc:      parseINIDecimal(extractFromINI(req.INIContent, "Total", "vDesc")),
+		TotVNF:        parseINIDecimal(extractFromINI(req.INIContent, "Total", "vNF")),
+		
+		// Protocolo e Extras
+		Protocolo:  extractFromINI(respStr, "", "nProt"),
+		InfAdFisco: extractFromINI(req.INIContent, "InfAdic", "infAdFisco"),
+		InfCpl:     extractFromINI(req.INIContent, "InfAdic", "infCpl"),
 	}
+	
+	dhRecStr := extractFromINI(respStr, "", "dhRecbto")
+	if dhRecStr != "UNKNOWN" {
+		t := parseINITime(dhRecStr)
+		inv.DHRecebimento = &t
+	}
+
+	// 10. Generate PDF if requested
+	if req.PrintPDF {
+		if err := hd.ImprimirPDF(); err == nil {
+			path, _ := hd.ObterCaminhoGerado()
+			if path != "" {
+				file, err := os.Open(path)
+				if err == nil {
+					pdfKey := fmt.Sprintf("%s/%s/%s-nfe.pdf", companyID.String(), time.Now().Format("2006/01"), chave)
+					_, err = s.storage.Upload(ctx, pdfKey, file, "application/pdf")
+					file.Close()
+					if err == nil {
+						inv.PDFB2Key = pdfKey
+						_ = os.Remove(path) // Clean up temporary PDF
+					}
+				}
+			}
+		}
+	}
+
 	_ = s.invRepo.Create(ctx, inv)
 
 	return &dto.NFeResponse{
@@ -145,7 +214,7 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 		return nil, err
 	}
 
-	status := extractFromINI(respStr, "xMotivo")
+	status := extractFromINI(respStr, "", "xMotivo")
 	
 	// Update DB status asynchronously or synchronously
 	_ = s.invRepo.UpdateStatus(ctx, uuid.Nil, status) // Needs actual invoice ID usually, or lookup by chave

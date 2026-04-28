@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
 	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
@@ -71,14 +73,71 @@ func configureHandleForCompany(
 }
 
 // extractFromINI helper to extract fields from ACBr INI response.
-func extractFromINI(content, key string) string {
+// If section is provided, it searches only within that section.
+func extractFromINI(content, section, key string) string {
 	lines := strings.Split(content, "\n")
 	prefix := key + "="
+	inSection := section == ""
+
 	for _, l := range lines {
 		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, prefix) {
+		if l == "" {
+			continue
+		}
+
+		// Check for section
+		if strings.HasPrefix(l, "[") && strings.HasSuffix(l, "]") {
+			currSection := strings.Trim(l, "[]")
+			if section != "" {
+				inSection = strings.EqualFold(currSection, section)
+			}
+			continue
+		}
+
+		if inSection && strings.HasPrefix(l, prefix) {
 			return strings.TrimPrefix(l, prefix)
 		}
 	}
 	return "UNKNOWN"
+}
+
+func parseINIInt(s string) int {
+	var v int
+	fmt.Sscanf(s, "%d", &v)
+	return v
+}
+
+func parseINIDecimal(s string) decimal.Decimal {
+	s = strings.Replace(s, ",", ".", -1)
+	d, _ := decimal.NewFromString(s)
+	return d
+}
+
+func parseINITime(s string) time.Time {
+	// ACBr INI usually uses dd/mm/yyyy hh:mm:ss or yyyy-mm-ddThh:mm:ss
+	// We try to handle common formats
+	formats := []string{
+		"2006-01-02T15:04:05-07:00",
+		"02/01/2006 15:04:05",
+		"2006-01-02T15:04:05",
+	}
+	for _, f := range formats {
+		t, err := time.Parse(f, s)
+		if err == nil {
+			return t
+		}
+	}
+	return time.Now()
+}
+
+func getSections(content string) []string {
+	var sections []string
+	lines := strings.Split(content, "\n")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "[") && strings.HasSuffix(l, "]") {
+			sections = append(sections, strings.Trim(l, "[]"))
+		}
+	}
+	return sections
 }

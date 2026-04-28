@@ -1,6 +1,8 @@
 package acbr
 
 /*
+#cgo LDFLAGS: -L${SRCDIR}/../../lib -lacbrnfe64
+#cgo CFLAGS: -I${SRCDIR}
 #include <stdlib.h>
 #include "nfe.h"
 */
@@ -118,8 +120,24 @@ func (hd *Handle) Consultar(chave string) (string, error) {
 	return readBuffer(buffer), nil
 }
 
-// NFE_Cancelar sends a cancellation event.
-func (hd *Handle) Cancelar(chave, justificativa, cnpj string, lote int) (string, error) {
+// NFE_CarregarEventoINI loads an event INI string.
+func (hd *Handle) CarregarEventoINI(iniContent string) error {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	cINI, freeINI := allocCString(iniContent)
+	defer freeINI()
+
+	res := C.NFE_CarregarEventoINI(hd.h, cINI)
+	if res != 0 {
+		return libError(hd.h, "failed to load event INI")
+	}
+	return nil
+}
+
+// NFE_EnviarEvento sends the loaded events.
+func (hd *Handle) EnviarEvento(lote int) (string, error) {
 	hd.mu.Lock()
 	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
@@ -128,16 +146,9 @@ func (hd *Handle) Cancelar(chave, justificativa, cnpj string, lote int) (string,
 	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
 	defer C.free(unsafe.Pointer(buffer))
 
-	cChave, free := allocCString(chave)
-	defer free()
-	cJust, free2 := allocCString(justificativa)
-	defer free2()
-	cCNPJ, free3 := allocCString(cnpj)
-	defer free3()
-
-	res := C.NFE_Cancelar(hd.h, cChave, cJust, cCNPJ, C.int(lote), buffer, &bufferSize)
+	res := C.NFE_EnviarEvento(hd.h, C.int(lote), buffer, &bufferSize)
 	if res != 0 {
-		return "", libError(hd.h, "failed to cancel NFe")
+		return "", libError(hd.h, "failed to send events")
 	}
 
 	return readBuffer(buffer), nil
@@ -207,31 +218,6 @@ func (hd *Handle) ObterXml(index int) (string, error) {
 	return readBuffer(buffer), nil
 }
 
-// CartaCorrecao sends a CCe.
-func (hd *Handle) CartaCorrecao(chave, correcao, cnpj string, lote int) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
-	hd.LastUsed = time.Now()
-
-	var bufferSize C.int = 16384
-	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
-	defer C.free(unsafe.Pointer(buffer))
-
-	cChave, free := allocCString(chave)
-	defer free()
-	cCorr, free2 := allocCString(correcao)
-	defer free2()
-	cCNPJ, free3 := allocCString(cnpj)
-	defer free3()
-
-	res := C.NFE_CartaCorrecao(hd.h, cChave, cCorr, cCNPJ, C.int(lote), buffer, &bufferSize)
-	if res != 0 {
-		return "", libError(hd.h, "failed to send CCe")
-	}
-
-	return readBuffer(buffer), nil
-}
-
 // Inutilizar sends an Inutilizacao.
 func (hd *Handle) Inutilizar(cnpj, justificativa string, ano, modelo, serie, nInicial, nFinal int) (string, error) {
 	hd.mu.Lock()
@@ -250,6 +236,36 @@ func (hd *Handle) Inutilizar(cnpj, justificativa string, ano, modelo, serie, nIn
 	res := C.NFE_Inutilizar(hd.h, cCNPJ, cJust, C.int(ano), C.int(modelo), C.int(serie), C.int(nInicial), C.int(nFinal), buffer, &bufferSize)
 	if res != 0 {
 		return "", libError(hd.h, "failed to inutilizar numbers")
+	}
+
+	return readBuffer(buffer), nil
+}
+
+// ImprimirPDF generates the PDF for the loaded NFes.
+func (hd *Handle) ImprimirPDF() error {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	res := C.NFE_ImprimirPDF(hd.h)
+	if res != 0 {
+		return libError(hd.h, "failed to generate PDF")
+	}
+	return nil
+}
+
+// ObterCaminhoGerado returns the path of the last generated file (XML or PDF).
+func (hd *Handle) ObterCaminhoGerado() (string, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+
+	var bufferSize C.int = 4096
+	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+	defer C.free(unsafe.Pointer(buffer))
+
+	res := C.NFE_ObterCaminhoGerado(hd.h, buffer, &bufferSize)
+	if res != 0 {
+		return "", libError(hd.h, "failed to get generated path")
 	}
 
 	return readBuffer(buffer), nil
