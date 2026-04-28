@@ -7,14 +7,14 @@ WORKDIR /build
 
 # Install C dependencies for cgo (ACBrLib needs OpenSSL + LibXml2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc6-dev \
+    build-essential \
     libssl-dev \
     libxml2-dev \
     libgtk-3-dev \
-    libgdk-pixbuf2.0-dev \
+    libgdk-pixbuf-2.0-dev \
     libpango1.0-dev \
     libcairo2-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy go module files first for layer caching
@@ -23,7 +23,8 @@ RUN go mod download
 
 # Copy source code
 COPY . .
-
+COPY lib/libacbrnfe64.so /build/lib/
+ENV LD_LIBRARY_PATH=/build/lib
 # Build the application
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /build/bin/goacbr-api ./cmd/api
