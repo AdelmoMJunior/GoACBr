@@ -34,12 +34,14 @@ func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 	defer freeCryptKey()
 
 	// 1. Initialize
+	slog.Debug("Calling NFE_Inicializar...")
 	res := C.NFE_Inicializar(&h, cConfigPath, cCryptKey)
 	if res != 0 {
+		slog.Error("NFE_Inicializar failed", "code", res)
 		return nil, fmt.Errorf("failed to initialize ACBrLibNFe (code %d)", res)
 	}
 
-	slog.Debug("New ACBrLibNFe handle initialized")
+	slog.Debug("New ACBrLibNFe handle initialized successfully")
 
 	return &Handle{
 		h:        h,
@@ -81,10 +83,14 @@ func (hd *Handle) ConfigGravarValor(section, key, value string) error {
 	cValue, freeValue := allocCString(value)
 	defer freeValue()
 
+	slog.Debug("Calling NFE_ConfigGravarValor", "section", section, "key", key)
 	res := C.NFE_ConfigGravarValor(hd.h, cSection, cKey, cValue)
 	if res != 0 {
-		return libError(hd.h, fmt.Sprintf("failed to set config %s/%s", section, key))
+		err := libError(hd.h, fmt.Sprintf("failed to set config %s/%s", section, key))
+		slog.Error("NFE_ConfigGravarValor failed", "error", err)
+		return err
 	}
+	slog.Debug("NFE_ConfigGravarValor success")
 	return nil
 }
 

@@ -9,6 +9,7 @@ package acbr
 import "C"
 import (
 	"fmt"
+	"log/slog"
 	"time"
 	"unsafe"
 )
@@ -169,10 +170,14 @@ func (hd *Handle) DistribuicaoDFePorUltNSU(ufAutor int, cnpj, ultNSU string) (st
 	cUltNSU, free2 := allocCString(ultNSU)
 	defer free2()
 
+	slog.Debug("Calling NFE_DistribuicaoDFePorUltNSU", "cnpj", cnpj, "ultNSU", ultNSU)
 	res := C.NFE_DistribuicaoDFePorUltNSU(hd.h, C.int(ufAutor), cCNPJ, cUltNSU, buffer, &bufferSize)
 	if res != 0 {
-		return "", libError(hd.h, "failed to query distribution DFe by UltNSU")
+		err := libError(hd.h, "failed to query distribution DFe by UltNSU")
+		slog.Error("NFE_DistribuicaoDFePorUltNSU failed", "error", err)
+		return "", err
 	}
+	slog.Debug("NFE_DistribuicaoDFePorUltNSU success")
 
 	return readBuffer(buffer), nil
 }
@@ -266,10 +271,14 @@ func (hd *Handle) StatusServico() (string, error) {
 	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
 	defer C.free(unsafe.Pointer(buffer))
 
+	slog.Debug("Calling NFE_StatusServico")
 	res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
 	if res != 0 {
-		return "", libError(hd.h, "failed to query SEFAZ status")
+		err := libError(hd.h, "failed to query SEFAZ status")
+		slog.Error("NFE_StatusServico failed", "error", err)
+		return "", err
 	}
+	slog.Debug("NFE_StatusServico success")
 
 	return readBuffer(buffer), nil
 }
