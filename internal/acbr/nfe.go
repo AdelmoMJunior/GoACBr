@@ -255,3 +255,21 @@ func (hd *Handle) ImprimirPDF() error {
 }
 
 
+
+// StatusServico queries the SEFAZ service status.
+func (hd *Handle) StatusServico() (string, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
+	var bufferSize C.int = 16384
+	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+	defer C.free(unsafe.Pointer(buffer))
+
+	res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
+	if res != 0 {
+		return " \, libError(hd.h, \failed to query SEFAZ status\)
+ }
+
+ return readBuffer(buffer), nil
+}

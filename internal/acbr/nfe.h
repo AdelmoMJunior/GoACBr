@@ -36,6 +36,7 @@ int NFE_ImprimirPDF(handle h);
 int NFE_ObterXml(handle h, int aIndex, char* sResposta, int* esTamanho);
 
 /* --- Status e Último Retorno --- */
+int NFE_StatusServico(handle h, char* sResposta, int* esTamanho);
 int NFE_UltimoRetorno(handle h, char* sMensagem, int* esTamanho);
 
 #endif

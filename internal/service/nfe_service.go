@@ -210,7 +210,13 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 		}
 	}
 
-	respStr, err := hd.Consultar(req.Chave)
+	var respStr string
+	if req.Chave == "" {
+		respStr, err = hd.StatusServico()
+	} else {
+		respStr, err = hd.Consultar(req.Chave)
+	}
+
 	if err != nil {
 		return nil, err
 	}
