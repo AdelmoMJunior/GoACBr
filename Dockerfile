@@ -1,8 +1,7 @@
 # ==============================================================================
 # Stage 1: Build
 # ==============================================================================
-FROM golang:1.26 AS builder
-
+FROM golang:1.24-bookworm AS builder
 WORKDIR /build
 
 # Install C dependencies for cgo (ACBrLib needs OpenSSL + LibXml2)
@@ -24,7 +23,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 COPY lib/libacbrnfe64.so /build/lib/
+
 ENV LD_LIBRARY_PATH=/build/lib
+
 # Build the application
 RUN mkdir -p /build/bin && \
     CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
@@ -34,7 +35,6 @@ RUN mkdir -p /build/bin && \
 # Stage 2: Runtime
 # ==============================================================================
 FROM debian:bookworm-slim
-
 WORKDIR /app
 
 # Install runtime dependencies
@@ -57,12 +57,12 @@ RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
     chown -R goacbr:goacbr /app
 
 # Copy ACBrLib shared library
-#COPY --chown=goacbr:goacbr material/acbrlib/dep/Schemas /app/data/Schemas
-# NOTE: Place libacbrnfe64.so in ./lib/ before building
 COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
-
 COPY lib/libacbrnfe64.so /usr/local/lib/
 RUN ldconfig
+
+# Copy compiled binary from builder
+COPY --from=builder --chown=goacbr:goacbr /build/bin/goacbr-api /app/goacbr-api
 
 # Copy migrations
 COPY --chown=goacbr:goacbr migrations /app/migrations
