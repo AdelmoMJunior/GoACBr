@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"context"
 	"fmt"
 	"time"
@@ -141,9 +143,16 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-// GenerateRandomHash generates a secure random hash (useful for storing hashed refresh tokens in DB).
+// GenerateRandomHash generates a SHA256 hash of the data (useful for long tokens).
 func GenerateRandomHash(data string) (string, error) {
-	return HashPassword(data)
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// CheckTokenHash compares a token with its SHA256 hash.
+func CheckTokenHash(token, hash string) bool {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:]) == hash
 }
 
 // --- Context keys and helpers ---

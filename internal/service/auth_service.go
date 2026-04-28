@@ -106,7 +106,7 @@ func (s *authService) Refresh(ctx context.Context, req *dto.RefreshRequest, ipAd
 		return nil, apperror.NewUnauthorized("session expired or revoked")
 	}
 
-	if !auth.CheckPasswordHash(req.RefreshToken, session.RefreshTokenHash) {
+	if !auth.CheckTokenHash(req.RefreshToken, session.RefreshTokenHash) {
 		return nil, apperror.NewUnauthorized("invalid refresh token")
 	}
 
