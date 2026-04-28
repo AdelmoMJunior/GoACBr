@@ -1,0 +1,35 @@
+CREATE TABLE IF NOT EXISTS companies (
+    id UUID PRIMARY KEY,
+    cnpj VARCHAR(14) NOT NULL UNIQUE,
+    razao_social VARCHAR(255) NOT NULL,
+    nome_fantasia VARCHAR(255),
+    inscricao_estadual VARCHAR(50),
+    inscricao_municipal VARCHAR(50),
+    crt SMALLINT NOT NULL,
+    logradouro VARCHAR(255),
+    numero VARCHAR(50),
+    complemento VARCHAR(255),
+    bairro VARCHAR(255),
+    cod_municipio VARCHAR(7),
+    municipio VARCHAR(255),
+    uf VARCHAR(2) NOT NULL,
+    cep VARCHAR(8),
+    telefone VARCHAR(50),
+    cnae VARCHAR(20),
+    ambiente SMALLINT NOT NULL DEFAULT 2, -- 1=Prod, 2=Homolog
+    serie_nfe INT NOT NULL DEFAULT 1,
+    serie_nfce INT NOT NULL DEFAULT 1,
+    csc_id VARCHAR(50),
+    csc_token VARCHAR(255),
+    smtp_host VARCHAR(255),
+    smtp_port INT,
+    smtp_user VARCHAR(255),
+    smtp_password_enc VARCHAR(255),
+    smtp_from VARCHAR(255),
+    smtp_tls BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_companies_cnpj ON companies(cnpj);
