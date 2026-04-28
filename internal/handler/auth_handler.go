@@ -23,12 +23,10 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/login", h.Login)
 	r.Post("/refresh", h.Refresh)
-	
-	// Protected
-	r.Group(func(r chi.Router) {
-		// Requires AuthMiddleware to be applied before
-		r.Post("/logout", h.Logout)
-	})
+}
+
+func (h *AuthHandler) RegisterProtectedRoutes(r chi.Router) {
+	r.Post("/logout", h.Logout)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {

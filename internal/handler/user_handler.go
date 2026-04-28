@@ -23,13 +23,12 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/register", h.Register)
-	
-	// Protected
-	r.Group(func(r chi.Router) {
-		r.Get("/me", h.GetMe)
-		r.Put("/me", h.UpdateMe)
-		r.Put("/me/password", h.ChangePassword)
-	})
+}
+
+func (h *UserHandler) RegisterProtectedRoutes(r chi.Router) {
+	r.Get("/me", h.GetMe)
+	r.Put("/me", h.UpdateMe)
+	r.Put("/me/password", h.ChangePassword)
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {

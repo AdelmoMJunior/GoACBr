@@ -53,10 +53,9 @@ func SetupRoutes(
 			protected.Use(appmiddleware.AuthMiddleware(tokenSvc, sessionRepo))
 			
 			// Routes that don't need company context
-			// (authH logout, userH me routes) are already wrapped in their own Group blocks
-			// inside RegisterRoutes, but we must pass them this protected router
-			authH.RegisterRoutes(protected) 
-			userH.RegisterRoutes(protected)
+			// (authH logout, userH me routes)
+			authH.RegisterProtectedRoutes(protected)
+			userH.RegisterProtectedRoutes(protected)
 			compH.RegisterRoutes(protected)
 
 			// The following need CompanyGuard, which is applied inside their own RegisterRoutes
