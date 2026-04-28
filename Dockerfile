@@ -64,8 +64,7 @@ RUN ldconfig
 # Copy compiled binary from builder
 COPY --from=builder --chown=goacbr:goacbr /build/bin/goacbr-api /app/goacbr-api
 
-# Copy migrations
-COPY --chown=goacbr:goacbr migrations /app/migrations
+# Copy migrations (REMOVIDO: agora embutido no binário)
 
 # Set library path for ACBrLib
 ENV LD_LIBRARY_PATH=/app/lib
