@@ -26,7 +26,8 @@ COPY . .
 COPY lib/libacbrnfe64.so /build/lib/
 ENV LD_LIBRARY_PATH=/build/lib
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+RUN mkdir -p /build/bin && \
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /build/bin/goacbr-api ./cmd/api
 
 # ==============================================================================
