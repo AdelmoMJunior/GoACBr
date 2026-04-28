@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev \
     libssl-dev \
     libxml2-dev \
+    libgtk-3-dev \
+    libgdk-pixbuf2.0-dev \
+    libpango1.0-dev \
+    libcairo2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy go module files first for layer caching
