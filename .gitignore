@@ -3,7 +3,7 @@
 *.exe~
 *.dll
 *.dylib
-*.so
+
 /bin/
 /build/
 
