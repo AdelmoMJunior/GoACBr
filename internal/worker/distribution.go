@@ -83,6 +83,8 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 			break
 		}
 
+		slog.Info("Batch synced", "company_id", companyID, "docs_count", len(res.Documentos), "new_last_nsu", res.UltNSU, "max_nsu", res.MaxNSU)
+
 		// Update control
 		ctrl.LastNSU = res.UltNSU
 		ctrl.MaxNSU = res.MaxNSU

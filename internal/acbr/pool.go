@@ -47,69 +47,71 @@ func NewHandlePool(maxHandles int, libPath, configPath, cryptKey string) (*Handl
 }
 
 // GetHandle retrieves a handle from the pool, preferably one already configured for companyID.
-// If none are available and we haven't reached maxHandles, it creates a new one.
-// Otherwise, it blocks until one becomes available (in a real scenario, use channels, but for simplicity we'll loop with backoff).
 func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handle, error) {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			// Attempt to find a handle
-			h := p.tryAcquire(companyID)
+			// 1. Attempt to find a free handle
+			h, canCreate := p.tryAcquire(companyID)
 			if h != nil {
 				return h, nil
 			}
 
-			// Backoff and retry
+			// 2. If we can create a new one, do it outside the lock
+			if canCreate {
+				newH, err := NewHandle(p.libPath, p.configPath, p.cryptKey)
+				if err == nil {
+					p.mu.Lock()
+					// Double check if someone else filled the pool while we were creating
+					if len(p.handles) < p.maxHandles {
+						p.handles = append(p.handles, newH)
+						newH.mu.Lock()
+						p.mu.Unlock()
+						return newH, nil
+					}
+					// Pool filled up, destroy this one and continue loop
+					p.mu.Unlock()
+					_ = newH.Destroy()
+				} else {
+					slog.Error("Failed to create new ACBr handle", "error", err)
+				}
+			}
+
+			// 3. Backoff and retry
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }
 
-func (p *HandlePool) tryAcquire(companyID uuid.UUID) *Handle {
+func (p *HandlePool) tryAcquire(companyID uuid.UUID) (*Handle, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	// 1. Try to find a free handle already configured for this company
 	var bestMatch *Handle
 	for _, h := range p.handles {
-		// TryLock returns true if lock was acquired
 		if h.mu.TryLock() {
 			if h.ConfiguredFor == companyID {
-				// Perfect match! Keep the lock and return
-				return h
+				return h, false
 			}
-			// It's free, but not for this company. We'll use it if we can't find a perfect match.
 			if bestMatch == nil {
 				bestMatch = h
 			} else {
-				// Unlock the one we aren't using
 				h.mu.Unlock()
 			}
 		}
 	}
 
 	if bestMatch != nil {
-		// We found a free handle but it needs reconfiguration.
-		// It is already locked by TryLock. We will reset ConfiguredFor.
 		bestMatch.ConfiguredFor = uuid.Nil
-		return bestMatch
+		return bestMatch, false
 	}
 
-	// 2. If no handles are free, can we create a new one?
-	if len(p.handles) < p.maxHandles {
-		h, err := NewHandle(p.libPath, p.configPath, p.cryptKey)
-		if err == nil {
-			p.handles = append(p.handles, h)
-			h.mu.Lock()
-			return h
-		}
-		slog.Error("Failed to expand ACBr handle pool", "error", err)
-	}
-
-	// 3. No handles free, max capacity reached.
-	return nil
+	// 2. Can we create a new one?
+	canCreate := len(p.handles) < p.maxHandles
+	return nil, canCreate
 }
 
 // ReleaseHandle puts a handle back into the available pool (by simply unlocking it).
