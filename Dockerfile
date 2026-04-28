@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Build
 # ==============================================================================
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.26-bookworm AS builder
 WORKDIR /build
 
 # Install C dependencies for cgo (ACBrLib needs OpenSSL + LibXml2)
