@@ -268,8 +268,8 @@ func (hd *Handle) StatusServico() (string, error) {
 
 	res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
 	if res != 0 {
-		return " \, libError(hd.h, \failed to query SEFAZ status\)
- }
+		return "", libError(hd.h, "failed to query SEFAZ status")
+	}
 
- return readBuffer(buffer), nil
+	return readBuffer(buffer), nil
 }
