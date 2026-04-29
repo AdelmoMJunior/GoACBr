@@ -64,25 +64,47 @@ func configureHandleForCompany(
 
 	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
-	// Build INI Content
+	// Build INI Content - EXACTLY matching user's template but with Linux paths
 	iniContent := fmt.Sprintf(`[Principal]
 TipoResposta=2
+CodificacaoResposta=0
 LogNivel=4
 LogPath=/app/logs/acbr
+ArquivoLog=/app/logs/acbr/acbrlib.log
+
+[Sistema]
+Nome=GoACBr
+Versao=1.0.0
+PersonalizarUserAgent=1
+SuporteBit64=1
 
 [DFe]
 SSLLib=1
 CryptLib=1
 HttpLib=3
 XmlSignLib=4
+SSLType=5
 ArquivoPFX=%s
 Senha=%s
+VerificarValidade=1
+AguardarConsultaRet=200
+IntervaloTentativas=1000
+Tentativas=5
+Timeout=15000
+QuebradeLinha=|
 
 [NFe]
+FormaEmissao=0
 ModeloDF=55
 VersaoDF=4.00
+SalvarTXT=0
+SalvarXML=1
+SalvarEvento=1
+SalvarApenasNFeProcessadas=1
+EmissaoPathNFe=1
+NormatizarMunicipios=1
+ExibirErroSchema=1
 SalvarGer=1
-PathSalvar=/app/data/nfe
 AtualizarXMLCancelado=1
 
 [WebService]
@@ -90,6 +112,20 @@ UF=%s
 Ambiente=%d
 Visualizar=0
 Salvar=1
+AjustaAguarda=1
+Aguardar=5000
+Tentativas=5
+IntervaloTentativas=3000
+TimeZone=-3
+
+[Arquivos]
+Salvar=1
+SepararPorMes=1
+SepararPorCNPJ=1
+SepararPorModelo=1
+AdicionarLiteral=1
+PathSalvar=/app/data/nfe
+PathSchemas=/app/lib/Schemas/NFe
 `, pfxPath, password, comp.UF, comp.Ambiente)
 
 	slog.Debug("Generated INI content", "ini", iniContent)

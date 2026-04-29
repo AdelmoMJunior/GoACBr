@@ -56,8 +56,9 @@ RUN groupadd -r goacbr && useradd -r -g goacbr -d /app -s /sbin/nologin goacbr
 RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
     chown -R goacbr:goacbr /app
 
-# Copy ACBrLib shared library
+# Copy ACBrLib shared library and Schemas
 COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
+COPY --chown=goacbr:goacbr lib/Schemas /app/lib/Schemas
 COPY lib/libacbrnfe64.so /usr/local/lib/
 RUN ldconfig
 
