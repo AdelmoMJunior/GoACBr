@@ -9,7 +9,6 @@ import "C"
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,32 +29,28 @@ type Handle struct {
 }
 
 // NewHandle initializes a new ACBrLibNFe handle.
+// NewHandle inicializa SEM arquivo INI
 func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 	var h C.handle
 
-	cConfigPath, freeConfigPath := allocCString(configPath)
-	defer freeConfigPath()
+	// 1. NÃO usa configPath – passa string vazia
+	cConfig := C.CString("") // <- inicializa em memória
+	defer C.free(unsafe.Pointer(cConfig))
 
-	cCryptKey, freeCryptKey := allocCString(cryptKey)
-	defer freeCryptKey()
+	cCrypt, freeCrypt := allocCString(cryptKey)
+	defer freeCrypt()
 
-	// 0. Clean up any existing config file to avoid permission issues
-	_ = os.Remove(configPath)
-
-	// 1. Initialize
-	slog.Debug("Calling NFE_Inicializar...", "config_path", configPath)
-	res := C.NFE_Inicializar(&h, cConfigPath, cCryptKey)
+	slog.Debug("Calling NFE_Inicializar (memoria)...")
+	res := C.NFE_Inicializar(&h, cConfig, cCrypt)
 	if res != 0 {
-		slog.Error("NFE_Inicializar failed", "code", res)
 		return nil, fmt.Errorf("failed to initialize ACBrLibNFe (code %d)", res)
 	}
 
-	slog.Debug("New ACBrLibNFe handle initialized successfully")
-
+	slog.Debug("Handle criado em memória")
 	return &Handle{
 		h:          h,
 		LastUsed:   time.Now(),
-		ConfigPath: configPath,
+		ConfigPath: configPath, // guarda só para referência, não é usado
 	}, nil
 }
 
