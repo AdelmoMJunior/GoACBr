@@ -132,3 +132,15 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 	hd.ConfiguredFor = companyID
 	return nil
 }
+
+// ConfigLer loads a configuration file into the handle.
+func (hd *Handle) ConfigLer(path string) error {
+	cPath, freePath := allocCString(path)
+	defer freePath()
+
+	res := C.NFE_ConfigLer(hd.h, cPath)
+	if res != 0 {
+		return libError(hd.h, "failed to load config file")
+	}
+	return nil
+}

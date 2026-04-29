@@ -62,43 +62,50 @@ func configureHandleForCompany(
 		slog.Warn("No certificate found for company", "company_id", companyID)
 	}
 
-	slog.Debug("Applying company configuration to ACBr handle", "company_id", companyID, "uf", comp.UF, "ambiente", comp.Ambiente)
+	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
-	// Ensure directories exist
-	_ = os.MkdirAll("/app/logs/acbr", 0755)
-	_ = os.MkdirAll("/app/data/nfe", 0755)
+	// Build INI Content
+	iniContent := fmt.Sprintf(`
+[Principal]
+TipoResposta=2
+LogNivel=4
+LogPath=/app/logs/acbr
 
-	// Build ACBr Config Map based on the correct sections
-	cfg := map[string]map[string]string{
-		"Principal": {
-			"TipoResposta": "2", // INI
-			"LogNivel":     "4", // Paranoico
-			"LogPath":      "/app/logs/acbr",
-		},
-		"DFe": {
-			"SSLLib":     "1", // libOpenSSL
-			"CryptLib":   "1", // libOpenSSL
-			"HttpLib":    "3", // libHttpLibCurl
-			"XmlSignLib": "4", // libXmlSec
-			"ArquivoPFX": pfxPath,
-			"Senha":      password,
-		},
-		"NFe": {
-			"ModeloDF":              "55",
-			"VersaoDF":              "4.00",
-			"SalvarGer":             "1",
-			"PathSalvar":            "/app/data/nfe",
-			"AtualizarXMLCancelado": "1",
-		},
-		"WebService": {
-			"UF":       comp.UF,
-			"Ambiente": fmt.Sprintf("%d", comp.Ambiente),
-			"Visualizar": "0",
-			"Salvar":     "1",
-		},
+[DFe]
+SSLLib=1
+CryptLib=1
+HttpLib=3
+XmlSignLib=4
+ArquivoPFX=%s
+Senha=%s
+
+[NFe]
+ModeloDF=55
+VersaoDF=4.00
+SalvarGer=1
+PathSalvar=/app/data/nfe
+AtualizarXMLCancelado=1
+
+[WebService]
+UF=%s
+Ambiente=%d
+Visualizar=0
+Salvar=1
+`, pfxPath, password, comp.UF, comp.Ambiente)
+
+	// Write to a temporary company-specific INI file
+	tmpIniPath := fmt.Sprintf("/tmp/acbr_%s.ini", companyID)
+	if err := os.WriteFile(tmpIniPath, []byte(iniContent), 0644); err != nil {
+		return fmt.Errorf("failed to write temporary ini: %w", err)
+	}
+	defer os.Remove(tmpIniPath)
+
+	if err := hd.ConfigLer(tmpIniPath); err != nil {
+		return err
 	}
 
-	return hd.ApplyCompanyConfig(companyID, cfg)
+	hd.ConfiguredFor = companyID
+	return nil
 }
 
 // extractFromINI helper to extract fields from ACBr INI response.
