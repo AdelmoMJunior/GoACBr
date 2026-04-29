@@ -246,20 +246,23 @@ func DumpACBrLog(logPath string) {
 		logPath = "/tmp/acbr_logs"
 	}
 
-	// ACBrLib gera arquivos com extensão .log dentro da pasta configurada
-	files, err := filepath.Glob(filepath.Join(logPath, "*.log"))
-	if err != nil || len(files) == 0 {
-		// Tenta procurar log.txt caso tenha forçado
-		files, _ = filepath.Glob(filepath.Join(logPath, "*.txt"))
+	entries, err := os.ReadDir(logPath)
+	if err != nil {
+		return
 	}
 
-	for _, f := range files {
-		content, err := os.ReadFile(f)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		
+		fPath := filepath.Join(logPath, entry.Name())
+		content, err := os.ReadFile(fPath)
 		if err == nil && len(content) > 0 {
-			fmt.Printf("\n========== ACBrLib LOG (%s) ==========\n", filepath.Base(f))
+			fmt.Printf("\n========== ACBrLib LOG (%s) ==========\n", entry.Name())
 			fmt.Println(string(content))
 			fmt.Println("======================================================")
-			_ = os.Truncate(f, 0)
+			_ = os.Truncate(fPath, 0)
 		}
 	}
 }
