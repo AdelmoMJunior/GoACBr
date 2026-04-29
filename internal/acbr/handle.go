@@ -138,10 +138,6 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 }
 
 func (hd *Handle) ConfigLer(path string) error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
-	hd.LastUsed = time.Now()
-
 	cPath, freePath := allocCString(path)
 	defer freePath()
 
