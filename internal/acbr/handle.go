@@ -1,6 +1,8 @@
 package acbr
 
 /*
+#cgo LDFLAGS: -L../../lib -lacbrnfe64 -ldl
+#include <stdlib.h>    // ← adicionar isso
 #include "nfe.h"
 */
 import "C"
