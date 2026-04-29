@@ -57,7 +57,7 @@ func main() {
 	pool, err := acbr.NewHandlePool(
 		10, // PoolSize
 		cfg.ACBr.LibPath,
-		"/app/acbr.ini", // ConfigPath
+		"/tmp/acbr.ini", // ConfigPath
 		"",              // CryptKey
 	)
 	if err != nil {

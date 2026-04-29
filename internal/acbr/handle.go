@@ -7,6 +7,7 @@ import "C"
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -32,6 +33,9 @@ func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 
 	cCryptKey, freeCryptKey := allocCString(cryptKey)
 	defer freeCryptKey()
+
+	// 0. Clean up any existing config file to avoid permission issues
+	_ = os.Remove(configPath)
 
 	// 1. Initialize
 	slog.Debug("Calling NFE_Inicializar...")
