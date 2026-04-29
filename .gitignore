@@ -46,9 +46,9 @@ acbrlib.ini
 /redisdata/
 
 # Swagger generated (regenerable)
-/docs/docs.go
-/docs/swagger.json
-/docs/swagger.yaml
+#/docs/docs.go
+#/docs/swagger.json
+#/docs/swagger.yaml
 
 # Temporary
 /tmp/
