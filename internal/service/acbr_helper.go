@@ -128,7 +128,10 @@ PathSalvar=/app/data/nfe
 PathSchemas=/app/lib/Schemas/NFe
 `, pfxPath, password, comp.UF, comp.Ambiente)
 
-	slog.Debug("Generated INI content", "ini", iniContent)
+	slog.Debug("Generated INI content (Turbo Mode)", "ini", iniContent)
+
+	// ACBrLib is picky about line endings even on Linux, use \r\n
+	iniContent = strings.ReplaceAll(iniContent, "\n", "\r\n")
 
 	// Ensure directories exist before loading config
 	_ = os.MkdirAll("/app/logs/acbr", 0755)
@@ -136,10 +139,25 @@ PathSchemas=/app/lib/Schemas/NFe
 
 	// Write to a temporary company-specific INI file
 	tmpIniPath := fmt.Sprintf("/tmp/acbr_%s.ini", companyID)
-	if err := os.WriteFile(tmpIniPath, []byte(iniContent), 0644); err != nil {
+	if err := os.WriteFile(tmpIniPath, []byte(iniContent), 0666); err != nil {
 		return fmt.Errorf("failed to write temporary ini: %w", err)
 	}
 	defer os.Remove(tmpIniPath)
+
+	slog.Debug("Temporary INI written successfully", "path", tmpIniPath)
+
+	// List schemas directory to verify deployment
+	schemaPath := "/app/lib/Schemas/NFe"
+	entries, err := os.ReadDir(schemaPath)
+	if err != nil {
+		slog.Error("Failed to read schemas directory", "path", schemaPath, "error", err)
+	} else {
+		var files []string
+		for _, e := range entries {
+			files = append(files, e.Name())
+		}
+		slog.Debug("Files in Schemas directory", "path", schemaPath, "count", len(files), "files", files)
+	}
 
 	if err := hd.ConfigLer(tmpIniPath); err != nil {
 		return err
