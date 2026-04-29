@@ -49,6 +49,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Enable OpenSSL 3 legacy provider for old PFX certificates (like A1 with RC2)
+RUN sed -i 's/^# *legacy = legacy_sect/legacy = legacy_sect/' /etc/ssl/openssl.cnf && \
+    sed -i 's/^# *activate = 1/activate = 1/' /etc/ssl/openssl.cnf
+
 # Create non-root user
 RUN groupadd -r goacbr && useradd -r -g goacbr -d /app -s /sbin/nologin goacbr
 
