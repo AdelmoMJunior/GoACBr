@@ -21,6 +21,7 @@ import (
 type NFeService interface {
 	Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFeEmitRequest) (*dto.NFeResponse, error)
 	QueryStatus(ctx context.Context, companyID uuid.UUID, req *dto.NFeStatusRequest) (*dto.NFeResponse, error)
+	StatusServico(ctx context.Context, companyID uuid.UUID) (map[string]interface{}, error)
 }
 
 type nfeService struct {
@@ -230,4 +231,37 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 		Chave:  req.Chave,
 		Status: status,
 	}, nil
+}
+
+func (s *nfeService) StatusServico(ctx context.Context, companyID uuid.UUID) (map[string]interface{}, error) {
+	hd, err := s.pool.GetHandle(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer s.pool.ReleaseHandle(hd)
+
+	if hd.ConfiguredFor != companyID {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+			return nil, err
+		}
+	}
+
+	respStr, err := hd.StatusServico()
+	if err != nil {
+		return nil, apperror.NewInternal(fmt.Errorf("SEFAZ StatusServico failed: %w", err))
+	}
+
+	slog.Info("StatusServico response", "company_id", companyID, "response_len", len(respStr))
+
+	result := map[string]interface{}{
+		"raw_response": respStr,
+		"tpAmb":        extractFromINI(respStr, "", "tpAmb"),
+		"cStat":        extractFromINI(respStr, "", "cStat"),
+		"xMotivo":      extractFromINI(respStr, "", "xMotivo"),
+		"cUF":          extractFromINI(respStr, "", "cUF"),
+		"dhRecbto":     extractFromINI(respStr, "", "dhRecbto"),
+		"tMed":         extractFromINI(respStr, "", "tMed"),
+	}
+
+	return result, nil
 }

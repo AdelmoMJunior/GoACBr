@@ -39,6 +39,7 @@ func (h *NFeHandler) RegisterRoutes(r chi.Router) {
 
 		r.Post("/nfe/emit", h.Emit)
 		r.Post("/nfe/status", h.Status)
+		r.Get("/nfe/status-servico", h.StatusServico)
 
 		r.Post("/nfe/cancel", h.Cancel)
 		r.Post("/nfe/cce", h.CCe)
@@ -148,6 +149,22 @@ func (h *NFeHandler) Inutilizacao(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := h.eventService.Inutilizacao(r.Context(), companyID, &req)
+	if err != nil {
+		httputil.SendError(w, err)
+		return
+	}
+
+	httputil.SendJSON(w, http.StatusOK, res)
+}
+
+func (h *NFeHandler) StatusServico(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := auth.GetCompanyID(r.Context())
+	if !ok {
+		httputil.SendError(w, apperror.NewInternal(errors.New("company id missing in context")))
+		return
+	}
+
+	res, err := h.nfeService.StatusServico(r.Context(), companyID)
 	if err != nil {
 		httputil.SendError(w, err)
 		return
