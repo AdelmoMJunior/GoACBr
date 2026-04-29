@@ -22,6 +22,7 @@ type Handle struct {
 	mu           sync.Mutex
 	ConfiguredFor uuid.UUID // CompanyID currently loaded in this handle
 	LastUsed     time.Time
+	ConfigPath   string
 }
 
 // NewHandle initializes a new ACBrLibNFe handle.
@@ -48,8 +49,9 @@ func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 	slog.Debug("New ACBrLibNFe handle initialized successfully")
 
 	return &Handle{
-		h:        h,
-		LastUsed: time.Now(),
+		h:          h,
+		LastUsed:   time.Now(),
+		ConfigPath: configPath,
 	}, nil
 }
 

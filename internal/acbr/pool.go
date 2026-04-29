@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,7 +62,9 @@ func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handl
 
 			// 2. If we can create a new one, do it outside the lock
 			if canCreate {
-				newH, err := NewHandle(p.libPath, p.configPath, p.cryptKey)
+				// Generate a unique config path for this handle to avoid file contention
+				uniqueConfig := fmt.Sprintf("%s_%d.ini", strings.TrimSuffix(p.configPath, ".ini"), len(p.handles))
+				newH, err := NewHandle(p.libPath, uniqueConfig, p.cryptKey)
 				if err == nil {
 					p.mu.Lock()
 					// Double check if someone else filled the pool while we were creating
