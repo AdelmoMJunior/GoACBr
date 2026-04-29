@@ -99,8 +99,6 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 	// Don't lock here, we will lock inside ConfigGravarValor or do a batch lock
 	// Better to lock around the whole operation to prevent intermediate states
 
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	for section, keys := range configs {
