@@ -80,6 +80,7 @@ func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handl
 			}
 
 			// 3. Backoff and retry
+			slog.Debug("All ACBr handles busy, waiting...", "company_id", companyID)
 			time.Sleep(50 * time.Millisecond)
 		}
 	}

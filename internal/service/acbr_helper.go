@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,21 +34,35 @@ func configureHandleForCompany(
 	var pfxPath, password string
 	cert, err := certRepo.GetByCompanyID(ctx, companyID)
 	if err == nil && cert != nil {
+		slog.Debug("Found certificate for company, decrypting password...", "company_id", companyID)
 		// Decrypt password
 		passBytes, err := cryptoSvc.Decrypt(cert.PFXPasswordEnc)
 		if err == nil {
 			password = string(passBytes)
+		} else {
+			slog.Error("Failed to decrypt certificate password", "error", err)
 		}
 
+		slog.Debug("Decrypting PFX data...", "company_id", companyID)
 		// Decrypt PFX and save to temp file for ACBrLib
 		pfxEncData, err := cryptoSvc.Decrypt(string(cert.PFXData))
 		if err == nil {
 			tmpDir := filepath.Join(os.TempDir(), "goacbr", "certs")
 			os.MkdirAll(tmpDir, 0700)
 			pfxPath = filepath.Join(tmpDir, companyID.String()+".pfx")
-			_ = os.WriteFile(pfxPath, pfxEncData, 0600)
+			slog.Debug("Writing PFX to temporary file", "path", pfxPath)
+			err = os.WriteFile(pfxPath, pfxEncData, 0600)
+			if err != nil {
+				slog.Error("Failed to write temporary PFX file", "error", err)
+			}
+		} else {
+			slog.Error("Failed to decrypt PFX data", "error", err)
 		}
+	} else {
+		slog.Warn("No certificate found for company", "company_id", companyID)
 	}
+
+	slog.Debug("Applying company configuration to ACBr handle", "company_id", companyID, "uf", comp.UF, "ambiente", comp.Ambiente)
 
 	// Build ACBr Config Map
 	cfg := map[string]map[string]string{
