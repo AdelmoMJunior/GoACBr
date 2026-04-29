@@ -61,7 +61,8 @@ COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 COPY --chown=goacbr:goacbr lib/ACBrNFeServicos.ini /app/lib/
 
 # Copy Schemas into /app/lib/Schemas/NFe/ — path expected by the INI (PathSchemas=/app/lib/Schemas/NFe)
-COPY --from=builder --chown=goacbr:goacbr /build/lib/Schemas/ /app/lib/Schemas/
+RUN mkdir -p /app/lib/Schemas/NFe
+COPY --from=builder --chown=goacbr:goacbr /build/lib/Schemas/NFe/ /app/lib/Schemas/NFe/
 RUN find /app/lib/Schemas -type f | head -20 || echo "VAZIO OU INEXISTENTE"
 
 # Register library system-wide
