@@ -96,7 +96,7 @@ func configureHandleForCompany(
 	// 5. Prepare paths
 	schemasPath := pool.SchemasPath
 	if schemasPath == "" {
-		schemasPath = "/app/data/Schemas/NFe"
+		schemasPath = "/app/lib/Schemas/NFe"
 	}
 	logPath := pool.LogPath
 	if logPath == "" {

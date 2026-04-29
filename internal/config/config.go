@@ -22,11 +22,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host             string
-	Port             string
-	ReadTimeout      time.Duration
-	WriteTimeout     time.Duration
-	ShutdownTimeout  time.Duration
+	Host            string
+	Port            string
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	ShutdownTimeout time.Duration
 }
 
 type DatabaseConfig struct {
@@ -70,8 +70,8 @@ type EncryptionConfig struct {
 }
 
 type B2Config struct {
-	KeyID      string
-	AppKey     string
+	KeyID        string
+	AppKey       string
 	BucketName   string
 	Endpoint     string
 	Region       string
@@ -136,8 +136,8 @@ func Load() (*Config, error) {
 			Key: getEnv("ENCRYPTION_KEY", ""),
 		},
 		B2: B2Config{
-			KeyID:      getEnv("B2_KEY_ID", ""),
-			AppKey:     getEnv("B2_APP_KEY", ""),
+			KeyID:        getEnv("B2_KEY_ID", ""),
+			AppKey:       getEnv("B2_APP_KEY", ""),
 			BucketName:   getEnv("B2_BUCKET_NAME", "goacbr-storage"),
 			Endpoint:     getEnv("B2_ENDPOINT", ""),
 			Region:       getEnv("B2_REGION", "us-west-004"),
@@ -149,7 +149,7 @@ func Load() (*Config, error) {
 		},
 		ACBr: ACBrConfig{
 			LibPath:     getEnv("ACBR_LIB_PATH", "/app/lib/libacbrnfe64.so"),
-			SchemasPath: getEnv("ACBR_SCHEMAS_PATH", "/app/data/Schemas/NFe"),
+			SchemasPath: getEnv("ACBR_SCHEMAS_PATH", "/app/lib/Schemas/NFe"),
 			LogPath:     getEnv("ACBR_LOG_PATH", "/app/logs"),
 			LogLevel:    getEnv("ACBR_LOG_LEVEL", "4"),
 		},
