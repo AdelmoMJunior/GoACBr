@@ -109,15 +109,18 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 			cKey, freeKey := allocCString(key)
 			cVal, freeVal := allocCString(val)
 			
+			slog.Debug("Setting ACBr config", "section", section, "key", key)
 			res := C.NFE_ConfigGravarValor(hd.h, cSection, cKey, cVal)
 			
 			freeKey()
 			freeVal()
 			
 			if res != 0 {
+				slog.Error("Failed to set ACBr config", "section", section, "key", key, "res", res)
 				freeSection()
 				return libError(hd.h, fmt.Sprintf("failed to set config %s/%s", section, key))
 			}
+			slog.Debug("ACBr config set successfully", "section", section, "key", key)
 		}
 		freeSection()
 	}

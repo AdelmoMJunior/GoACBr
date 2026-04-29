@@ -64,6 +64,10 @@ func configureHandleForCompany(
 
 	slog.Debug("Applying company configuration to ACBr handle", "company_id", companyID, "uf", comp.UF, "ambiente", comp.Ambiente)
 
+	// Ensure directories exist
+	_ = os.MkdirAll("/app/logs/acbr", 0755)
+	_ = os.MkdirAll("/app/data/nfe", 0755)
+
 	// Build ACBr Config Map
 	cfg := map[string]map[string]string{
 		"Principal": {
