@@ -23,7 +23,6 @@ RUN go mod download
 # Copy source code
 COPY . .
 COPY lib/libacbrnfe64.so /build/lib/
-
 ENV LD_LIBRARY_PATH=/build/lib
 
 # Build the application
@@ -49,9 +48,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable OpenSSL 3 legacy provider for old PFX certificates (like A1 with RC2)
-RUN sed -i 's/^# *legacy = legacy_sect/legacy = legacy_sect/' /etc/ssl/openssl.cnf && \
-    sed -i 's/^# *activate = 1/activate = 1/' /etc/ssl/openssl.cnf
+# Enable OpenSSL legacy provider for old PFX certificates (A1 with RC2/RC4)
+# Mesma abordagem usada pelo Dockerfile oficial do ACBr
+COPY openssl-legacy.cnf /etc/ssl/
+ENV OPENSSL_CONF=/etc/ssl/openssl-legacy.cnf
+
+# Validate providers loaded correctly (quebra o build se legacy não carregar)
+RUN openssl list -providers
 
 # Create non-root user
 RUN groupadd -r goacbr && useradd -r -g goacbr -d /app -s /sbin/nologin goacbr
