@@ -65,8 +65,7 @@ func configureHandleForCompany(
 	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
 	// Build INI Content
-	iniContent := fmt.Sprintf(`
-[Principal]
+	iniContent := fmt.Sprintf(`[Principal]
 TipoResposta=2
 LogNivel=4
 LogPath=/app/logs/acbr
@@ -92,6 +91,12 @@ Ambiente=%d
 Visualizar=0
 Salvar=1
 `, pfxPath, password, comp.UF, comp.Ambiente)
+
+	slog.Debug("Generated INI content", "ini", iniContent)
+
+	// Ensure directories exist before loading config
+	_ = os.MkdirAll("/app/logs/acbr", 0755)
+	_ = os.MkdirAll("/app/data/nfe", 0755)
 
 	// Write to a temporary company-specific INI file
 	tmpIniPath := fmt.Sprintf("/tmp/acbr_%s.ini", companyID)
