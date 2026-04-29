@@ -120,7 +120,7 @@ func configureHandleForCompany(
 	configs := map[string]map[string]string{
 		// [Principal] — Geral.html
 		"Principal": {
-			"TipoResposta": "2", // JSON
+			"TipoResposta": "0", // INI
 			"LogNivel":     "3", // Completo
 			"LogPath":      logPath,
 		},
