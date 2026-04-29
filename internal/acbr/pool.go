@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,9 +11,6 @@ import (
 )
 
 // HandlePool manages a pool of ACBrLibNFe handles.
-// Since handles are expensive to create and we want to optimize configuration
-// time, we maintain a pool of them. If a handle is already configured for a
-// specific CNPJ, we prefer to reuse it to avoid rewriting all config sections.
 type HandlePool struct {
 	handles    []*Handle
 	maxHandles int
@@ -35,7 +31,7 @@ func NewHandlePool(maxHandles int, libPath, configPath, cryptKey string) (*Handl
 	}
 
 	// Pre-warm the pool with at least one handle
-	h, err := NewHandle(libPath, configPath, cryptKey)
+	h, err := NewHandle()
 	if err != nil {
 		return nil, fmt.Errorf("failed to pre-warm pool: %w", err)
 	}
@@ -62,9 +58,7 @@ func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handl
 
 			// 2. If we can create a new one, do it outside the lock
 			if canCreate {
-				// Generate a unique config path for this handle to avoid file contention
-				uniqueConfig := fmt.Sprintf("%s_%d.ini", strings.TrimSuffix(p.configPath, ".ini"), len(p.handles))
-				newH, err := NewHandle(p.libPath, uniqueConfig, p.cryptKey)
+				newH, err := NewHandle()
 				if err == nil {
 					p.mu.Lock()
 					// Double check if someone else filled the pool while we were creating
