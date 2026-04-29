@@ -39,7 +39,7 @@ func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 	_ = os.Remove(configPath)
 
 	// 1. Initialize
-	slog.Debug("Calling NFE_Inicializar...")
+	slog.Debug("Calling NFE_Inicializar...", "config_path", configPath)
 	res := C.NFE_Inicializar(&h, cConfigPath, cCryptKey)
 	if res != 0 {
 		slog.Error("NFE_Inicializar failed", "code", res)

@@ -108,8 +108,8 @@ func main() {
 	// 10. Workers
 	distWorker := worker.NewDistributionWorker(compRepo, distRepo, distSvc)
 	scheduler := worker.NewScheduler(distWorker)
-	scheduler.Start(context.Background())
-	defer scheduler.Stop()
+	// scheduler.Start(context.Background())
+	// defer scheduler.Stop()
 
 	// 10. Router
 	r := chi.NewRouter()
