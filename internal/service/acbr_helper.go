@@ -100,7 +100,7 @@ func configureHandleForCompany(
 	}
 	logPath := pool.LogPath
 	if logPath == "" {
-		logPath = "/tmp/acbr_logs"
+		logPath = "/tmp/acbr_logs/log.txt"
 	}
 	os.MkdirAll(logPath, 0755)
 
@@ -121,7 +121,7 @@ func configureHandleForCompany(
 		// [Principal] — Geral.html
 		"Principal": {
 			"TipoResposta": "0", // INI
-			"LogNivel":     "3", // Completo
+			"LogNivel":     "4", // Completo
 			"LogPath":      logPath,
 		},
 		// [DFe] — DFe.html
@@ -173,7 +173,7 @@ func configureHandleForCompany(
 // extractFromINI helper to extract fields from ACBr INI/JSON response.
 func extractFromINI(content, section, key string) string {
 	scanner := bufio.NewScanner(strings.NewReader(content))
-	prefix := key + "="
+	prefixUpper := strings.ToUpper(key + "=")
 	inSection := section == ""
 
 	for scanner.Scan() {
@@ -190,8 +190,11 @@ func extractFromINI(content, section, key string) string {
 			continue
 		}
 
-		if inSection && strings.HasPrefix(l, prefix) {
-			return strings.TrimPrefix(l, prefix)
+		if inSection && strings.HasPrefix(strings.ToUpper(l), prefixUpper) {
+			idx := strings.Index(l, "=")
+			if idx != -1 {
+				return strings.TrimSpace(l[idx+1:])
+			}
 		}
 	}
 	return "UNKNOWN"
@@ -234,4 +237,19 @@ func getSections(content string) []string {
 		}
 	}
 	return sections
+}
+
+// DumpACBrLog reads the ACBr log file, prints it to stdout, and truncates it.
+func DumpACBrLog(logPath string) {
+	if logPath == "" {
+		logPath = "/tmp/acbr_logs/log.txt"
+	}
+	content, err := os.ReadFile(logPath)
+	if err == nil && len(content) > 0 {
+		fmt.Println("\n========== ACBrLib LOG ==========")
+		fmt.Println(string(content))
+		fmt.Println("=================================")
+		// Truncate to avoid accumulating and printing old logs repeatedly
+		_ = os.Truncate(logPath, 0)
+	}
 }

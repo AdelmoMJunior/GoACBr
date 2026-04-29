@@ -58,6 +58,7 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 		return nil, fmt.Errorf("failed to get ACBr handle: %w", err)
 	}
 	defer s.pool.ReleaseHandle(hd)
+	defer DumpACBrLog(s.pool.LogPath)
 
 	// 2. Configure Handle if needed
 	if hd.ConfiguredFor != companyID {
@@ -204,6 +205,7 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 		return nil, err
 	}
 	defer s.pool.ReleaseHandle(hd)
+	defer DumpACBrLog(s.pool.LogPath)
 
 	if hd.ConfiguredFor != companyID {
 		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
@@ -239,6 +241,7 @@ func (s *nfeService) StatusServico(ctx context.Context, companyID uuid.UUID) (ma
 		return nil, err
 	}
 	defer s.pool.ReleaseHandle(hd)
+	defer DumpACBrLog(s.pool.LogPath)
 
 	if hd.ConfiguredFor != companyID {
 		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {

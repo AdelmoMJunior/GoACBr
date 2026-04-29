@@ -151,7 +151,7 @@ func Load() (*Config, error) {
 		ACBr: ACBrConfig{
 			LibPath:     getEnv("ACBR_LIB_PATH", "/app/lib/libacbrnfe64.so"),
 			SchemasPath: getEnv("ACBR_SCHEMAS_PATH", "/app/lib/Schemas/NFe"),
-			LogPath:     getEnv("ACBR_LOG_PATH", "/app/logs"),
+			LogPath:     getEnv("ACBR_LOG_PATH", "/tmp/acbr_logs/log.txt"),
 			LogLevel:    getEnv("ACBR_LOG_LEVEL", "4"),
 			CryptKey:    getEnv("ACBR_CRYPT_KEY", "354#$_GoACBr_$#453"),
 		},
