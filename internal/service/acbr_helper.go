@@ -151,6 +151,13 @@ PathSchemas=/app/lib/Schemas/NFe
 	entries, err := os.ReadDir(schemaPath)
 	if err != nil {
 		slog.Error("Failed to read schemas directory", "path", schemaPath, "error", err)
+		// Try listing parent to see what happened
+		parentEntries, _ := os.ReadDir("/app/lib/Schemas")
+		var pFiles []string
+		for _, e := range parentEntries {
+			pFiles = append(pFiles, e.Name())
+		}
+		slog.Debug("Files in parent Schemas directory", "files", pFiles)
 	} else {
 		var files []string
 		for _, e := range entries {

@@ -59,7 +59,7 @@ RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
 # Copy ACBrLib shared library and dependencies
 COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 COPY --chown=goacbr:goacbr lib/ACBrNFeServicos.ini /app/lib/
-COPY --chown=goacbr:goacbr lib/Schemas /app/lib/Schemas
+COPY --chown=goacbr:goacbr lib/Schemas /app/lib/Schemas/
 COPY lib/libacbrnfe64.so /usr/local/lib/
 RUN ldconfig
 
