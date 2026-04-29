@@ -68,7 +68,7 @@ func configureHandleForCompany(
 	_ = os.MkdirAll("/app/logs/acbr", 0755)
 	_ = os.MkdirAll("/app/data/nfe", 0755)
 
-	// Build ACBr Config Map
+	// Build ACBr Config Map based on the correct sections
 	cfg := map[string]map[string]string{
 		"Principal": {
 			"TipoResposta": "2", // INI
@@ -76,15 +76,25 @@ func configureHandleForCompany(
 			"LogPath":      "/app/logs/acbr",
 		},
 		"DFe": {
+			"SSLLib":     "1", // libOpenSSL
+			"CryptLib":   "1", // libOpenSSL
+			"HttpLib":    "3", // libHttpLibCurl
+			"XmlSignLib": "4", // libXmlSec
 			"ArquivoPFX": pfxPath,
 			"Senha":      password,
-			"UF":         comp.UF,
 		},
 		"NFe": {
-			"Ambiente":              fmt.Sprintf("%d", comp.Ambiente),
+			"ModeloDF":              "55",
+			"VersaoDF":              "4.00",
 			"SalvarGer":             "1",
 			"PathSalvar":            "/app/data/nfe",
 			"AtualizarXMLCancelado": "1",
+		},
+		"WebService": {
+			"UF":       comp.UF,
+			"Ambiente": fmt.Sprintf("%d", comp.Ambiente),
+			"Visualizar": "0",
+			"Salvar":     "1",
 		},
 	}
 
