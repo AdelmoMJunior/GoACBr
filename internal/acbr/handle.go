@@ -18,12 +18,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// allocCString creates a C string from a Go string. Returns the C pointer
-// and a free function the caller MUST defer.
-func allocCString(s string) (*C.char, func()) {
-	cs := C.CString(s)
-	return cs, func() { C.free(unsafe.Pointer(cs)) }
-}
+// allocCString and libError are defined in errors.go
 
 // Handle wraps a raw ACBrLibNFe handle pointer.
 type Handle struct {
@@ -165,17 +160,4 @@ func (hd *Handle) ConfigLerValor(section, key string) (string, error) {
 		return "", libError(hd.h, fmt.Sprintf("failed to read config %s/%s", section, key))
 	}
 	return strings.TrimSpace(C.GoString(buffer)), nil
-}
-
-// libError extracts the last error message from ACBr.
-func libError(h C.handle, prefix string) error {
-	var bufferSize C.int = 4096
-	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
-	defer C.free(unsafe.Pointer(buffer))
-	C.NFE_UltimoRetorno(h, buffer, &bufferSize)
-	msg := strings.TrimSpace(C.GoString(buffer))
-	if msg != "" {
-		return fmt.Errorf("%s: %s", prefix, msg)
-	}
-	return fmt.Errorf("%s", prefix)
 }
