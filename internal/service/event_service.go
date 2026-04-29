@@ -52,7 +52,7 @@ func (s *eventService) Cancel(ctx context.Context, companyID uuid.UUID, req *dto
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -125,7 +125,7 @@ func (s *eventService) CCe(ctx context.Context, companyID uuid.UUID, req *dto.CC
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
@@ -198,7 +198,7 @@ func (s *eventService) Inutilizacao(ctx context.Context, companyID uuid.UUID, re
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}

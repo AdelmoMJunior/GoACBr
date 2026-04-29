@@ -20,6 +20,24 @@ import (
 	"github.com/AdelmoMJunior/GoACBr/pkg/logger"
 )
 
+// @title           GoACBr API
+// @version         1.0
+// @description     API Multi-tenant para integração com SEFAZ via ACBrLib
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 func main() {
 	// 1. Config & Logger
 	cfg, err := config.Load()
@@ -45,20 +63,20 @@ func main() {
 		defer redisCache.Close()
 	}
 
-	// 4. Storage (B2)
-	storageProv, err := storage.NewB2Storage(cfg.B2)
+	// 4. Storage (B2) — optional, runs in degraded mode without it
+	var storageProv storage.Provider
+	b2, err := storage.NewB2Storage(cfg.B2)
 	if err != nil {
-		slog.Error("Failed to initialize B2 storage", "error", err)
-		// We could exit or run in degraded mode, let's exit for scaffold purity
-		os.Exit(1)
+		slog.Warn("B2 storage unavailable — XML/PDF storage will be disabled", "error", err)
+	} else {
+		storageProv = b2
 	}
 
 	// 5. ACBrLib Pool
 	pool, err := acbr.NewHandlePool(
 		10, // PoolSize
-		cfg.ACBr.LibPath,
-		"/tmp/acbr.ini", // ConfigPath
-		"",              // CryptKey
+		cfg.ACBr.SchemasPath,
+		cfg.ACBr.LogPath,
 	)
 	if err != nil {
 		slog.Error("Failed to initialize ACBrLib pool", "error", err)
@@ -111,11 +129,11 @@ func main() {
 	scheduler.Start(context.Background())
 	defer scheduler.Stop()
 
-	// 10. Router
+	// 11. Router
 	r := chi.NewRouter()
 	server.SetupRoutes(r, tokenSvc, sessRepo, authH, userH, compH, certH, nfeH, distH, invH, healthH)
 
-	// 11. Start Server
+	// 12. Start Server
 	srv := server.NewServer(cfg.Server, r)
 	srv.Start()
 }

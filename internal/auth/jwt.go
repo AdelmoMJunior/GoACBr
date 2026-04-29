@@ -161,7 +161,10 @@ type contextKey string
 
 const (
 	userIDKey    contextKey = "user_id"
-	companyIDKey contextKey = "company_id" // if we need to scope a request
+	companyIDKey contextKey = "company_id"
+	jtiKey       contextKey = "jti"
+	sessionIDKey contextKey = "session_id"
+	expiresAtKey contextKey = "expires_at"
 )
 
 // WithUserID adds a user ID to the context.
@@ -183,5 +186,31 @@ func WithCompanyID(ctx context.Context, companyID uuid.UUID) context.Context {
 // GetCompanyID retrieves the company ID from the context.
 func GetCompanyID(ctx context.Context) (uuid.UUID, bool) {
 	val, ok := ctx.Value(companyIDKey).(uuid.UUID)
+	return val, ok
+}
+
+// WithClaims adds the JWT claims (jti, sessionID, expiresAt) to the context.
+func WithClaims(ctx context.Context, jti string, sessionID uuid.UUID, expiresAt time.Time) context.Context {
+	ctx = context.WithValue(ctx, jtiKey, jti)
+	ctx = context.WithValue(ctx, sessionIDKey, sessionID)
+	ctx = context.WithValue(ctx, expiresAtKey, expiresAt)
+	return ctx
+}
+
+// GetJTI retrieves the JWT ID (jti) from the context.
+func GetJTI(ctx context.Context) (string, bool) {
+	val, ok := ctx.Value(jtiKey).(string)
+	return val, ok
+}
+
+// GetSessionID retrieves the session ID from the context.
+func GetSessionID(ctx context.Context) (uuid.UUID, bool) {
+	val, ok := ctx.Value(sessionIDKey).(uuid.UUID)
+	return val, ok
+}
+
+// GetExpiresAt retrieves the token expiration time from the context.
+func GetExpiresAt(ctx context.Context) (time.Time, bool) {
+	val, ok := ctx.Value(expiresAtKey).(time.Time)
 	return val, ok
 }

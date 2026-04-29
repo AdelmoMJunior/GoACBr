@@ -8,9 +8,9 @@ import (
 
 // UserCreateRequest is the request payload to create a new user.
 type UserCreateRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-	FullName string `json:"full_name" binding:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	FullName string `json:"full_name" validate:"required"`
 	Phone    string `json:"phone,omitempty"`
 }
 

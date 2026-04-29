@@ -14,10 +14,11 @@ import (
 	"unsafe"
 )
 
-// NFE_CarregarINI loads an NFe INI string into the handle.
+// All methods in this file follow the Handle LOCKING CONTRACT:
+// NO internal mu.Lock() — the HandlePool guarantees exclusive access.
+
+// CarregarINI loads an NFe INI string into the handle.
 func (hd *Handle) CarregarINI(iniContent string) error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	cINI, freeINI := allocCString(iniContent)
@@ -30,10 +31,8 @@ func (hd *Handle) CarregarINI(iniContent string) error {
 	return nil
 }
 
-// NFE_LimparLista clears the loaded NFes.
+// LimparLista clears the loaded NFes.
 func (hd *Handle) LimparLista() error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	res := C.NFE_LimparLista(hd.h)
@@ -43,10 +42,8 @@ func (hd *Handle) LimparLista() error {
 	return nil
 }
 
-// NFE_Assinar signs the loaded NFes.
+// Assinar signs the loaded NFes.
 func (hd *Handle) Assinar() error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	res := C.NFE_Assinar(hd.h)
@@ -56,10 +53,8 @@ func (hd *Handle) Assinar() error {
 	return nil
 }
 
-// NFE_Validar validates the loaded NFes against schemas.
+// Validar validates the loaded NFes against schemas.
 func (hd *Handle) Validar() error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	res := C.NFE_Validar(hd.h)
@@ -69,10 +64,8 @@ func (hd *Handle) Validar() error {
 	return nil
 }
 
-// NFE_Enviar sends the loaded NFes to SEFAZ.
+// Enviar sends the loaded NFes to SEFAZ.
 func (hd *Handle) Enviar(lote int, imprimir, sincrono, zipado bool) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 65536 // 64KB for response
@@ -100,10 +93,8 @@ func (hd *Handle) Enviar(lote int, imprimir, sincrono, zipado bool) (string, err
 	return readBuffer(buffer), nil
 }
 
-// NFE_Consultar queries an NFe status by chave.
+// Consultar queries an NFe status by chave.
 func (hd *Handle) Consultar(chave string) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 16384
@@ -121,10 +112,8 @@ func (hd *Handle) Consultar(chave string) (string, error) {
 	return readBuffer(buffer), nil
 }
 
-// NFE_CarregarEventoINI loads an event INI string.
+// CarregarEventoINI loads an event INI string.
 func (hd *Handle) CarregarEventoINI(iniContent string) error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	cINI, freeINI := allocCString(iniContent)
@@ -137,10 +126,8 @@ func (hd *Handle) CarregarEventoINI(iniContent string) error {
 	return nil
 }
 
-// NFE_EnviarEvento sends the loaded events.
+// EnviarEvento sends the loaded events.
 func (hd *Handle) EnviarEvento(lote int) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 16384
@@ -155,10 +142,8 @@ func (hd *Handle) EnviarEvento(lote int) (string, error) {
 	return readBuffer(buffer), nil
 }
 
-// NFE_DistribuicaoDFePorUltNSU queries DFe by UltNSU.
+// DistribuicaoDFePorUltNSU queries DFe by UltNSU.
 func (hd *Handle) DistribuicaoDFePorUltNSU(ufAutor int, cnpj, ultNSU string) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 1048576 // 1MB for distribution response
@@ -182,10 +167,8 @@ func (hd *Handle) DistribuicaoDFePorUltNSU(ufAutor int, cnpj, ultNSU string) (st
 	return readBuffer(buffer), nil
 }
 
-// NFE_DistribuicaoDFePorNSU queries a specific NSU.
+// DistribuicaoDFePorNSU queries a specific NSU.
 func (hd *Handle) DistribuicaoDFePorNSU(ufAutor int, cnpj, nsu string) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 1048576
@@ -207,8 +190,6 @@ func (hd *Handle) DistribuicaoDFePorNSU(ufAutor int, cnpj, nsu string) (string, 
 
 // ObterXml returns the XML content of a loaded NFe.
 func (hd *Handle) ObterXml(index int) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 1048576 // 1MB
@@ -225,8 +206,6 @@ func (hd *Handle) ObterXml(index int) (string, error) {
 
 // Inutilizar sends an Inutilizacao.
 func (hd *Handle) Inutilizar(cnpj, justificativa string, ano, modelo, serie, nInicial, nFinal int) (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 16384
@@ -248,8 +227,6 @@ func (hd *Handle) Inutilizar(cnpj, justificativa string, ano, modelo, serie, nIn
 
 // ImprimirPDF generates the PDF for the loaded NFes.
 func (hd *Handle) ImprimirPDF() error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	res := C.NFE_ImprimirPDF(hd.h)
@@ -259,12 +236,8 @@ func (hd *Handle) ImprimirPDF() error {
 	return nil
 }
 
-
-
 // StatusServico queries the SEFAZ service status.
 func (hd *Handle) StatusServico() (string, error) {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	var bufferSize C.int = 16384

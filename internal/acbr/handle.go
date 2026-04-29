@@ -1,8 +1,8 @@
 package acbr
 
 /*
-#cgo LDFLAGS: -L../../lib -lacbrnfe64 -ldl
-#include <stdlib.h>    // ← adicionar isso
+#cgo LDFLAGS: -L${SRCDIR}/../../lib -lacbrnfe64 -ldl
+#include <stdlib.h>
 #include "nfe.h"
 */
 import "C"
@@ -17,28 +17,30 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handle represents a single thread-safe instance of ACBrLibNFe.
-// ACBrLib is NOT thread-safe for parallel calls on the SAME handle.
-// Thus, each handle must be protected by a Mutex.
+// Handle represents a single instance of ACBrLibNFe.
+//
+// LOCKING CONTRACT: The Handle's mutex (mu) is used EXCLUSIVELY by the
+// HandlePool as an "in-use" flag. The pool acquires the lock via TryLock()
+// when handing out a handle, and releases it via Unlock() when the handle
+// is returned. Individual methods do NOT lock internally — the pool
+// guarantees that only one goroutine uses a handle at any given time.
+// This avoids deadlocks caused by nested locking.
 type Handle struct {
 	h             C.handle
 	mu            sync.Mutex
 	ConfiguredFor uuid.UUID // CompanyID currently loaded in this handle
 	LastUsed      time.Time
-	ConfigPath    string
 }
 
-// NewHandle initializes a new ACBrLibNFe handle.
-// NewHandle inicializa SEM arquivo INI
-func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
+// NewHandle initializes a new ACBrLibNFe handle in memory (no INI file).
+func NewHandle() (*Handle, error) {
 	var h C.handle
 
-	// 1. NÃO usa configPath – passa string vazia
-	cConfig := C.CString("") // <- inicializa em memória
+	cConfig := C.CString("")
 	defer C.free(unsafe.Pointer(cConfig))
 
-	cCrypt, freeCrypt := allocCString(cryptKey)
-	defer freeCrypt()
+	cCrypt := C.CString("")
+	defer C.free(unsafe.Pointer(cCrypt))
 
 	slog.Debug("Calling NFE_Inicializar (memoria)...")
 	res := C.NFE_Inicializar(&h, cConfig, cCrypt)
@@ -48,17 +50,14 @@ func NewHandle(libPath, configPath, cryptKey string) (*Handle, error) {
 
 	slog.Debug("Handle criado em memória")
 	return &Handle{
-		h:          h,
-		LastUsed:   time.Now(),
-		ConfigPath: configPath, // guarda só para referência, não é usado
+		h:        h,
+		LastUsed: time.Now(),
 	}, nil
 }
 
 // Destroy cleans up the handle memory in C.
+// Must be called with the pool lock held (or standalone after final use).
 func (hd *Handle) Destroy() error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
-
 	if hd.h == nil {
 		return nil
 	}
@@ -75,8 +74,6 @@ func (hd *Handle) Destroy() error {
 
 // ConfigGravarValor sets a configuration value in memory.
 func (hd *Handle) ConfigGravarValor(section, key, value string) error {
-	hd.mu.Lock()
-	defer hd.mu.Unlock()
 	hd.LastUsed = time.Now()
 
 	cSection, freeSection := allocCString(section)
@@ -88,22 +85,50 @@ func (hd *Handle) ConfigGravarValor(section, key, value string) error {
 	cValue, freeValue := allocCString(value)
 	defer freeValue()
 
-	slog.Debug("Calling NFE_ConfigGravarValor", "section", section, "key", key)
 	res := C.NFE_ConfigGravarValor(hd.h, cSection, cKey, cValue)
 	if res != 0 {
 		err := libError(hd.h, fmt.Sprintf("failed to set config %s/%s", section, key))
-		slog.Error("NFE_ConfigGravarValor failed", "error", err)
+		slog.Error("NFE_ConfigGravarValor failed", "section", section, "key", key, "error", err)
 		return err
 	}
-	slog.Debug("NFE_ConfigGravarValor success")
 	return nil
 }
 
-// ApplyCompanyConfig writes all the company-specific configuration into the handle.
-func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map[string]string) error {
-	// Don't lock here, we will lock inside ConfigGravarValor or do a batch lock
-	// Better to lock around the whole operation to prevent intermediate states
+// ConfigGravar persists the current in-memory config to a file.
+func (hd *Handle) ConfigGravar(path string) error {
+	hd.LastUsed = time.Now()
 
+	cPath, freePath := allocCString(path)
+	defer freePath()
+
+	res := C.NFE_ConfigGravar(hd.h, cPath)
+	if res != 0 {
+		return libError(hd.h, "failed to save config file")
+	}
+	return nil
+}
+
+// ConfigLer loads configuration from a file into the handle.
+func (hd *Handle) ConfigLer(path string) error {
+	hd.LastUsed = time.Now()
+
+	cPath, freePath := allocCString(path)
+	defer freePath()
+
+	res := C.NFE_ConfigLer(hd.h, cPath)
+	if res != 0 {
+		var bufferSize C.int = 4096
+		buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+		defer C.free(unsafe.Pointer(buffer))
+		C.NFE_UltimoRetorno(hd.h, buffer, &bufferSize)
+		msg := strings.TrimSpace(C.GoString(buffer))
+		return fmt.Errorf("failed to load config file: [acbr] %s", msg)
+	}
+	return nil
+}
+
+// ApplyCompanyConfig writes all company-specific configuration into the handle.
+func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map[string]string) error {
 	hd.LastUsed = time.Now()
 
 	for section, keys := range configs {
@@ -112,39 +137,19 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 			cKey, freeKey := allocCString(key)
 			cVal, freeVal := allocCString(val)
 
-			slog.Debug("Setting ACBr config", "section", section, "key", key)
 			res := C.NFE_ConfigGravarValor(hd.h, cSection, cKey, cVal)
 
 			freeKey()
 			freeVal()
 
 			if res != 0 {
-				slog.Error("Failed to set ACBr config", "section", section, "key", key, "res", res)
 				freeSection()
 				return libError(hd.h, fmt.Sprintf("failed to set config %s/%s", section, key))
 			}
-			slog.Debug("ACBr config set successfully", "section", section, "key", key)
 		}
 		freeSection()
 	}
 
 	hd.ConfiguredFor = companyID
-	return nil
-}
-
-func (hd *Handle) ConfigLer(path string) error {
-	cPath, freePath := allocCString(path)
-	defer freePath()
-
-	res := C.NFE_ConfigLer(hd.h, cPath)
-	if res != 0 {
-		// Captura mensagem real da ACBrLib
-		var bufferSize C.int = 4096
-		buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
-		defer C.free(unsafe.Pointer(buffer))
-		C.NFE_UltimoRetorno(hd.h, buffer, &bufferSize)
-		msg := strings.TrimSpace(C.GoString(buffer))
-		return fmt.Errorf("failed to load config file: [acbr] %s", msg)
-	}
 	return nil
 }

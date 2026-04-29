@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -40,7 +39,7 @@ func (h *NFeHandler) RegisterRoutes(r chi.Router) {
 
 		r.Post("/nfe/emit", h.Emit)
 		r.Post("/nfe/status", h.Status)
-		
+
 		r.Post("/nfe/cancel", h.Cancel)
 		r.Post("/nfe/cce", h.CCe)
 		r.Post("/nfe/inutilizacao", h.Inutilizacao)
@@ -55,8 +54,8 @@ func (h *NFeHandler) Emit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.NFeEmitRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -77,8 +76,8 @@ func (h *NFeHandler) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.NFeStatusRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -99,8 +98,8 @@ func (h *NFeHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.CancelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -121,8 +120,8 @@ func (h *NFeHandler) CCe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.CCeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -143,8 +142,8 @@ func (h *NFeHandler) Inutilizacao(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.InutilizacaoRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 

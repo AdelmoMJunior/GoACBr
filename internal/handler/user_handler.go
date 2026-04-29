@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -33,8 +32,8 @@ func (h *UserHandler) RegisterProtectedRoutes(r chi.Router) {
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.UserCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -71,8 +70,8 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.UserUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -93,8 +92,8 @@ func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.ChangePasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 

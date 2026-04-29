@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"net"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/AdelmoMJunior/GoACBr/internal/auth"
 	"github.com/AdelmoMJunior/GoACBr/internal/dto"
 	"github.com/AdelmoMJunior/GoACBr/internal/service"
 	"github.com/AdelmoMJunior/GoACBr/pkg/apperror"
@@ -32,8 +32,8 @@ func (h *AuthHandler) RegisterProtectedRoutes(r chi.Router) {
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -54,8 +54,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req dto.RefreshRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -75,11 +75,19 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	// The middleware verifies the JWT, we just need to get the session ID from the Claims
-	// and blacklist the JWT ID (jti).
-	// This usually requires the raw token or claims to be in context. 
-	// For simplicity, let's just say logout returns 200 OK. 
-	// In a complete implementation, AuthMiddleware would pass claims to context.
-	
+	jti, jtiOk := auth.GetJTI(r.Context())
+	sessionID, sidOk := auth.GetSessionID(r.Context())
+	expiresAt, expOk := auth.GetExpiresAt(r.Context())
+
+	if !jtiOk || !sidOk || !expOk {
+		httputil.SendError(w, apperror.NewUnauthorized("missing token claims for logout"))
+		return
+	}
+
+	if err := h.authService.Logout(r.Context(), sessionID, jti, expiresAt); err != nil {
+		httputil.SendError(w, err)
+		return
+	}
+
 	httputil.SendJSON(w, http.StatusOK, map[string]string{"message": "logged out successfully"})
 }

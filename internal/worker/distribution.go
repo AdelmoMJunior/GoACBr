@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type DistributionWorker struct {
 	compRepo    repository.CompanyRepository
 	distRepo    repository.DistributionRepository
 	distService service.DistributionService
+	maxParallel int // Maximum number of companies to sync in parallel
 }
 
 // NewDistributionWorker creates a new distribution worker.
@@ -29,10 +31,12 @@ func NewDistributionWorker(
 		compRepo:    compRepo,
 		distRepo:    distRepo,
 		distService: distService,
+		maxParallel: 5, // Semaphore: at most 5 companies syncing in parallel
 	}
 }
 
 // RunOnce executes a single pass of the distribution sync for all eligible companies.
+// Each company runs in its own goroutine (limited by maxParallel).
 func (w *DistributionWorker) RunOnce(ctx context.Context) {
 	slog.Info("Starting Distribution Worker pass")
 
@@ -40,14 +44,45 @@ func (w *DistributionWorker) RunOnce(ctx context.Context) {
 	if err != nil {
 		slog.Error("Failed to fetch eligible companies for distribution sync", "error", err)
 		return
-	} 
-	
-	for _, comp := range companies {
-		if err := w.syncCompany(ctx, comp.ID); err != nil {
-			slog.Error("Failed to sync company", "company_id", comp.ID, "error", err)
-		}
 	}
 
+	if len(companies) == 0 {
+		slog.Debug("No companies eligible for distribution sync")
+		return
+	}
+
+	slog.Info("Companies eligible for sync", "count", len(companies))
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, w.maxParallel) // Semaphore for concurrency limit
+
+	for _, comp := range companies {
+		wg.Add(1)
+		go func(companyID uuid.UUID) {
+			defer wg.Done()
+
+			// Acquire semaphore slot
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := w.syncCompany(ctx, companyID); err != nil {
+				slog.Error("Failed to sync company", "company_id", companyID, "error", err)
+
+				// Save error status to DB
+				now := time.Now()
+				errMsg := err.Error()
+				_ = w.distRepo.UpsertControl(ctx, &domain.DistributionControl{
+					CompanyID:    companyID,
+					Status:       "error",
+					ErrorMessage: errMsg,
+					LastQueryAt:  &now,
+					UpdatedAt:    now,
+				})
+			}
+		}(comp.ID)
+	}
+
+	wg.Wait()
 	slog.Info("Distribution Worker pass completed")
 }
 
@@ -70,11 +105,23 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 
 	slog.Info("Syncing DFe for company", "company_id", companyID, "last_nsu", ctrl.LastNSU)
 
-	// In a real loop, we would call QueryByUltNSU until LastNSU == MaxNSU
-	// We wrap in a short loop to prevent infinite loops in case of ACBr error
+	// Mark as running
+	now := time.Now()
+	ctrl.IsRunning = true
+	ctrl.Status = "syncing"
+	ctrl.UpdatedAt = now
+	_ = w.distRepo.UpsertControl(ctx, ctrl)
+
+	// Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
 	for i := 0; i < 50; i++ {
 		res, err := w.distService.QueryByUltNSU(ctx, companyID, ctrl.LastNSU)
 		if err != nil {
+			// Persist error and stop
+			ctrl.IsRunning = false
+			ctrl.Status = "error"
+			ctrl.ErrorMessage = err.Error()
+			ctrl.UpdatedAt = time.Now()
+			_ = w.distRepo.UpsertControl(ctx, ctrl)
 			return err
 		}
 
@@ -85,15 +132,26 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 
 		slog.Info("Batch synced", "company_id", companyID, "docs_count", len(res.Documentos), "new_last_nsu", res.UltNSU, "max_nsu", res.MaxNSU)
 
-		// Update control
+		// Update control after each batch
 		ctrl.LastNSU = res.UltNSU
 		ctrl.MaxNSU = res.MaxNSU
-		
+		ctrl.UpdatedAt = time.Now()
+		_ = w.distRepo.UpsertControl(ctx, ctrl)
+
 		if ctrl.LastNSU == ctrl.MaxNSU {
 			// Fully synced
 			break
 		}
 	}
+
+	// Mark as idle after completion
+	ctrl.IsRunning = false
+	ctrl.Status = "idle"
+	ctrl.ErrorMessage = ""
+	queryTime := time.Now()
+	ctrl.LastQueryAt = &queryTime
+	ctrl.UpdatedAt = queryTime
+	_ = w.distRepo.UpsertControl(ctx, ctrl)
 
 	return nil
 }

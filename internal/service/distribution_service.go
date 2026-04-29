@@ -68,13 +68,13 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
 
-	// AcUFAutor is usually the UF code of the company or SEFAZ Nacional (91)
-	ufAutor := 91
+	// Use the company's real UF code for the SEFAZ distribution query
+	ufAutor := UFToCode(comp.UF)
 
 	respStr, err := hd.DistribuicaoDFePorUltNSU(ufAutor, comp.CNPJ, ultNSU)
 	if err != nil {
@@ -211,12 +211,12 @@ func (s *distributionService) QueryByNSU(ctx context.Context, companyID uuid.UUI
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}
 
-	ufAutor := 91
+	ufAutor := UFToCode(comp.UF)
 	respStr, err := hd.DistribuicaoDFePorNSU(ufAutor, comp.CNPJ, nsu)
 	if err != nil {
 		return nil, err

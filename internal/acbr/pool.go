@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,23 +18,24 @@ type HandlePool struct {
 	handles    []*Handle
 	maxHandles int
 	mu         sync.Mutex
-	libPath    string
-	configPath string
-	cryptKey   string
+
+	// SchemasPath is the absolute path to the NFe XML schemas directory.
+	SchemasPath string
+	// LogPath is the absolute path where ACBrLib should write its logs.
+	LogPath string
 }
 
 // NewHandlePool creates a new pool with the given capacity.
-func NewHandlePool(maxHandles int, libPath, configPath, cryptKey string) (*HandlePool, error) {
+func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, error) {
 	pool := &HandlePool{
-		handles:    make([]*Handle, 0, maxHandles),
-		maxHandles: maxHandles,
-		libPath:    libPath,
-		configPath: configPath,
-		cryptKey:   cryptKey,
+		handles:     make([]*Handle, 0, maxHandles),
+		maxHandles:  maxHandles,
+		SchemasPath: schemasPath,
+		LogPath:     logPath,
 	}
 
 	// Pre-warm the pool with at least one handle
-	h, err := NewHandle(libPath, configPath, cryptKey)
+	h, err := NewHandle()
 	if err != nil {
 		return nil, fmt.Errorf("failed to pre-warm pool: %w", err)
 	}
@@ -62,19 +62,15 @@ func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handl
 
 			// 2. If we can create a new one, do it outside the lock
 			if canCreate {
-				// Generate a unique config path for this handle to avoid file contention
-				uniqueConfig := fmt.Sprintf("%s_%d.ini", strings.TrimSuffix(p.configPath, ".ini"), len(p.handles))
-				newH, err := NewHandle(p.libPath, uniqueConfig, p.cryptKey)
+				newH, err := NewHandle()
 				if err == nil {
 					p.mu.Lock()
-					// Double check if someone else filled the pool while we were creating
 					if len(p.handles) < p.maxHandles {
 						p.handles = append(p.handles, newH)
-						newH.mu.Lock()
+						newH.mu.Lock() // Mark as in-use
 						p.mu.Unlock()
 						return newH, nil
 					}
-					// Pool filled up, destroy this one and continue loop
 					p.mu.Unlock()
 					_ = newH.Destroy()
 				} else {
@@ -98,7 +94,7 @@ func (p *HandlePool) tryAcquire(companyID uuid.UUID) (*Handle, bool) {
 	for _, h := range p.handles {
 		if h.mu.TryLock() {
 			if h.ConfiguredFor == companyID {
-				return h, false
+				return h, false // Already configured — best case
 			}
 			if bestMatch == nil {
 				bestMatch = h
@@ -109,7 +105,7 @@ func (p *HandlePool) tryAcquire(companyID uuid.UUID) (*Handle, bool) {
 	}
 
 	if bestMatch != nil {
-		bestMatch.ConfiguredFor = uuid.Nil
+		bestMatch.ConfiguredFor = uuid.Nil // Will need reconfiguration
 		return bestMatch, false
 	}
 
@@ -118,10 +114,8 @@ func (p *HandlePool) tryAcquire(companyID uuid.UUID) (*Handle, bool) {
 	return nil, canCreate
 }
 
-// ReleaseHandle puts a handle back into the available pool (by simply unlocking it).
+// ReleaseHandle returns a handle to the pool (unlocks the "in-use" flag).
 func (p *HandlePool) ReleaseHandle(h *Handle) {
-	// If a handle got corrupted, we could destroy it and remove it here,
-	// but normally we just unlock it.
 	h.mu.Unlock()
 }
 
@@ -130,7 +124,11 @@ func (p *HandlePool) Close() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, h := range p.handles {
+		// Handles should not be in use when Close is called.
+		// We try-lock to be safe, then destroy.
+		h.mu.TryLock()
 		_ = h.Destroy()
+		// Don't unlock — handle is dead
 	}
 	p.handles = nil
 }
@@ -146,10 +144,10 @@ func (p *HandlePool) janitor() {
 		now := time.Now()
 
 		for _, h := range p.handles {
-			// If handle is free (TryLock succeeds) and hasn't been used in 30 mins
 			if h.mu.TryLock() {
 				if now.Sub(h.LastUsed) > 30*time.Minute && len(activeHandles) > 0 {
-					// Destroy and don't append to active
+					// Destroy idle handle (mutex is held, no deadlock since
+					// Destroy no longer locks internally)
 					_ = h.Destroy()
 					h.mu.Unlock()
 					continue

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -37,7 +36,7 @@ func (h *CompanyHandler) RegisterRoutes(r chi.Router) {
 		// Routes requiring specific company access
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.CompanyGuard(h.compRepo))
-			
+
 			r.Get("/companies/{company_id}", h.Get)
 			r.Put("/companies/{company_id}", h.Update)
 			r.Put("/companies/{company_id}/smtp", h.ConfigureSMTP)
@@ -69,8 +68,8 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.CompanyCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -107,8 +106,8 @@ func (h *CompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.CompanyCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
@@ -129,8 +128,8 @@ func (h *CompanyHandler) ConfigureSMTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.CompanySMTPRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 

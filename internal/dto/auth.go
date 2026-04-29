@@ -4,8 +4,8 @@ import "time"
 
 // LoginRequest is the request payload for login.
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 // LoginResponse is the response payload for login.
@@ -18,13 +18,13 @@ type LoginResponse struct {
 
 // RefreshRequest is the request payload to refresh tokens.
 type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 // ChangePasswordRequest is the payload to change user password.
 type ChangePasswordRequest struct {
-	OldPassword string `json:"old_password" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=8"`
+	OldPassword string `json:"old_password" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
 // TokenData is the payload returned when decoding a JWT.

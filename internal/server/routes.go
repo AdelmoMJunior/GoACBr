@@ -9,6 +9,9 @@ import (
 	"github.com/AdelmoMJunior/GoACBr/internal/handler"
 	appmiddleware "github.com/AdelmoMJunior/GoACBr/internal/middleware"
 	"github.com/AdelmoMJunior/GoACBr/internal/repository"
+
+	_ "github.com/AdelmoMJunior/GoACBr/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // SetupRoutes configures all HTTP routes.
@@ -45,8 +48,11 @@ func SetupRoutes(
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public routes
 		healthH.RegisterRoutes(api)
-		authH.RegisterRoutes(api)   // Login/Refresh
-		userH.RegisterRoutes(api)   // Register
+		authH.RegisterRoutes(api) // Login/Refresh
+		userH.RegisterRoutes(api) // Register
+
+		// Swagger UI
+		api.Get("/swagger/*", httpSwagger.WrapHandler)
 
 		// Protected routes
 		api.Group(func(protected chi.Router) {

@@ -60,7 +60,7 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 
 	// 2. Configure Handle if needed
 	if hd.ConfiguredFor != companyID {
-		err = configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc)
+		err = configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc)
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +102,9 @@ func (s *nfeService) Emit(ctx context.Context, companyID uuid.UUID, req *dto.NFe
 	cStat := 0
 	fmt.Sscanf(cStatStr, "%d", &cStat)
 
-	// 8. Store XML in B2
+	// 8. Store XML in B2 (if storage is available)
 	xmlKey := fmt.Sprintf("%s/%s/%s-nfe.xml", companyID.String(), time.Now().Format("2006/01"), chave)
-	if xmlContent != "" {
+	if xmlContent != "" && s.storage != nil {
 		_, _ = s.storage.Upload(ctx, xmlKey, strings.NewReader(xmlContent), "application/xml")
 	}
 
@@ -205,7 +205,7 @@ func (s *nfeService) QueryStatus(ctx context.Context, companyID uuid.UUID, req *
 	defer s.pool.ReleaseHandle(hd)
 
 	if hd.ConfiguredFor != companyID {
-		if err := configureHandleForCompany(ctx, hd, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
+		if err := configureHandleForCompany(ctx, hd, s.pool, companyID, s.compRepo, s.certRepo, s.cryptoSvc); err != nil {
 			return nil, err
 		}
 	}

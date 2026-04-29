@@ -44,7 +44,22 @@ func AuthMiddleware(tokenSvc *auth.TokenService, sessionRepo repository.SessionR
 				return
 			}
 
+			// Inject user ID into context
 			ctx := auth.WithUserID(r.Context(), userID)
+
+			// Inject JTI, SessionID and ExpiresAt for Logout support
+			sessionID := uuid.Nil
+			if claims.ID != "" {
+				if sid, parseErr := uuid.Parse(claims.ID); parseErr == nil {
+					sessionID = sid
+				}
+			}
+			var expiresAt time.Time
+			if claims.ExpiresAt != nil {
+				expiresAt = claims.ExpiresAt.Time
+			}
+			ctx = auth.WithClaims(ctx, claims.ID, sessionID, expiresAt)
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

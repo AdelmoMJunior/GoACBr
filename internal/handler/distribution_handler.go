@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -64,8 +63,8 @@ func (h *DistributionHandler) Query(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.DistributionQueryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.SendError(w, apperror.NewBadRequest("invalid json payload"))
+	if err := httputil.DecodeAndValidate(r, &req); err != nil {
+		httputil.SendError(w, apperror.NewBadRequest(err.Error()))
 		return
 	}
 
