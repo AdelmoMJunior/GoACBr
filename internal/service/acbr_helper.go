@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"context"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"golang.org/x/crypto/pkcs12"
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
 	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
@@ -73,17 +75,37 @@ func configureHandleForCompany(
 	}
 	pfxPassword := string(passBytes)
 
-	// 4. Decrypt PFX data and write to temp file
+	// 4. Decrypt PFX data
 	pfxBytes, err := cryptoSvc.Decrypt(string(cert.PFXData))
 	if err != nil {
 		return fmt.Errorf("failed to decrypt certificate PFX: %w", err)
 	}
 
+	// 4.1 Convert PFX to PEM bypassing OpenSSL 3 legacy ciphers issue
+	blocks, err := pkcs12.ToPEM(pfxBytes, pfxPassword)
+	if err != nil {
+		return fmt.Errorf("failed to extract PEM from PFX: %w", err)
+	}
+
+	var certPEM, keyPEM []byte
+	for _, b := range blocks {
+		if b.Type == "CERTIFICATE" {
+			certPEM = append(certPEM, pem.EncodeToMemory(b)...)
+		} else if strings.Contains(b.Type, "PRIVATE KEY") {
+			keyPEM = append(keyPEM, pem.EncodeToMemory(b)...)
+		}
+	}
+
 	certsDir := "/tmp/acbr_certs"
 	os.MkdirAll(certsDir, 0700)
-	pfxPath := filepath.Join(certsDir, companyID.String()+".pfx")
-	if err := os.WriteFile(pfxPath, pfxBytes, 0600); err != nil {
-		return fmt.Errorf("failed to write PFX to temp file: %w", err)
+	certPath := filepath.Join(certsDir, companyID.String()+".cer")
+	keyPath := filepath.Join(certsDir, companyID.String()+".key")
+
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write cert to temp file: %w", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write key to temp file: %w", err)
 	}
 
 	slog.Info("Configuring ACBr handle for company",
@@ -130,8 +152,9 @@ func configureHandleForCompany(
 			"SSLHttpLib":        "3", // httpOpenSSL
 			"SSLXmlSignLib":     "4", // xsLibXml2
 			"UF":                comp.UF,
-			"ArquivoPFX":        pfxPath,
-			"Senha":             pfxPassword,
+			"ArquivoCertificado": certPath,
+			"ArquivoChavePrivada": keyPath,
+			"Senha":             "", // Unencrypted PEM key
 			"VerificarValidade": "1",
 		},
 		// [NFe] — NFe2.html (Configurações da Biblioteca)

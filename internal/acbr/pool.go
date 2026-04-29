@@ -28,10 +28,12 @@ type HandlePool struct {
 	LogPath string
 	// IniDir is the directory where per-handle INI files are stored.
 	IniDir string
+	// CryptKey is the encryption key for ACBrLib configuration.
+	CryptKey string
 }
 
 // NewHandlePool creates a new pool with the given capacity.
-func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, error) {
+func NewHandlePool(maxHandles int, schemasPath, logPath, cryptKey string) (*HandlePool, error) {
 	iniDir := "/tmp/acbr_ini"
 	os.MkdirAll(iniDir, 0700)
 
@@ -41,6 +43,7 @@ func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, er
 		SchemasPath: schemasPath,
 		LogPath:     logPath,
 		IniDir:      iniDir,
+		CryptKey:    cryptKey,
 	}
 
 	// Pre-warm the pool with at least one handle
@@ -60,7 +63,7 @@ func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, er
 func (p *HandlePool) createHandle() (*Handle, error) {
 	id := atomic.AddInt64(&handleCounter, 1)
 	iniPath := filepath.Join(p.IniDir, fmt.Sprintf("handle_%d.ini", id))
-	return NewHandle(iniPath)
+	return NewHandle(iniPath, p.CryptKey)
 }
 
 // GetHandle retrieves a handle from the pool, preferably one already configured for companyID.

@@ -33,16 +33,16 @@ type Handle struct {
 // iniPath MUST be a valid file path — ACBr will create it with all default
 // values if it doesn't exist. This ensures all config sections ([NFe], [DANFE], etc.)
 // are properly registered and accessible via ConfigGravarValor.
-func NewHandle(iniPath string) (*Handle, error) {
+func NewHandle(iniPath, cryptKey string) (*Handle, error) {
 	var h C.handle
 
 	cConfig, freeConfig := allocCString(iniPath)
 	defer freeConfig()
 
-	cCrypt := C.CString("")
-	defer C.free(unsafe.Pointer(cCrypt))
+	cCrypt, freeCrypt := allocCString(cryptKey)
+	defer freeCrypt()
 
-	slog.Debug("Calling NFE_Inicializar", "ini_path", iniPath)
+	slog.Debug("Calling NFE_Inicializar", "ini_path", iniPath, "crypt_key", cryptKey)
 	res := C.NFE_Inicializar(&h, cConfig, cCrypt)
 	if res != 0 {
 		return nil, fmt.Errorf("failed to initialize ACBrLibNFe (code %d)", res)

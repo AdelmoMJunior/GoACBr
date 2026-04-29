@@ -88,6 +88,7 @@ type ACBrConfig struct {
 	SchemasPath string
 	LogPath     string
 	LogLevel    string
+	CryptKey    string
 }
 
 type RateLimitConfig struct {
@@ -152,6 +153,7 @@ func Load() (*Config, error) {
 			SchemasPath: getEnv("ACBR_SCHEMAS_PATH", "/app/lib/Schemas/NFe"),
 			LogPath:     getEnv("ACBR_LOG_PATH", "/app/logs"),
 			LogLevel:    getEnv("ACBR_LOG_LEVEL", "4"),
+			CryptKey:    getEnv("ACBR_CRYPT_KEY", "354#$_GoACBr_$#453"),
 		},
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: getInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
