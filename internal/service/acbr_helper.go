@@ -64,6 +64,12 @@ func configureHandleForCompany(
 
 	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
+	// Ensure valid values for numeric fields
+	amb := comp.Ambiente
+	if amb != 1 && amb != 2 {
+		amb = 2 // Default to Homologação
+	}
+
 	// Build INI Content - EXACTLY matching user's template but with Linux paths
 	iniContent := fmt.Sprintf(`[Principal]
 TipoResposta=0
@@ -207,27 +213,27 @@ VerificarValidade=1
 FormaEmissao=0
 SalvarGer=1
 ExibirErroSchema=1
-FormatoAlerta=TAG:%%%%TAGNIVEL%%%% ID:%%%%ID%%%%/%%%%TAG%%%%(%%%%DESCRICAO%%%%) - %%%%MSG%%%%.
+FormatoAlerta=TAG:%%TAGNIVEL%% ID:%%ID%%/%%TAG%%(%%DESCRICAO%%) - %%MSG%%.
 RetirarAcentos=1
 RetirarEspacos=1
 IdentarXML=0
 ValidarDigest=1
 IdCSC=
 CSC=
-ModeloDF=0
-VersaoDF=3
+ModeloDF=55
+VersaoDF=4.00
 AtualizarXMLCancelado=1
 VersaoQRCode=2
 CamposFatObrigatorios=1
 TagNT2018005=0
 ForcarGerarTagRejeicao906=0
 Ambiente=%d
-SalvarWS=0
+SalvarWS=1
 Timeout=15000
 TimeoutPorThread=0
 Visualizar=0
-AjustaAguardaConsultaRet=0
-AguardarConsultaRet=0
+AjustaAguardaConsultaRet=1
+AguardarConsultaRet=5000
 IntervaloTentativas=1000
 Tentativas=5
 SSLType=5
@@ -255,6 +261,26 @@ PathEvento=/app/data/nfe/evento
 PathArquivoMunicipios=/app/data/nfe/municipio
 IdCSRT=0
 CSRT=
+
+[WebService]
+UF=%s
+Ambiente=%d
+Visualizar=0
+Salvar=1
+AjustaAguarda=1
+Aguardar=5000
+Tentativas=5
+IntervaloTentativas=3000
+TimeZone=-3
+
+[Arquivos]
+Salvar=1
+SepararPorMes=1
+SepararPorCNPJ=1
+SepararPorModelo=1
+AdicionarLiteral=1
+PathSalvar=/app/data/nfe
+PathSchemas=/app/lib/Schemas/NFe
 
 [DANFE]
 PathPDF=/app/data/nfe/pdf
@@ -376,7 +402,7 @@ FonteLinhaItem.Italic=0
 FonteLinhaItem.Underline=0
 FonteLinhaItem.StrikeOut=0
 FormatarNumeroDocumento=1
-`, comp.UF, pfxPath, password, comp.Ambiente)
+`, comp.UF, pfxPath, password, amb, comp.UF, amb)
 
 	slog.Debug("Generated INI content (Turbo Mode)", "ini", iniContent)
 
