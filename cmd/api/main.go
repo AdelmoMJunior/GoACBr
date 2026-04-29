@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"os"
 
@@ -108,6 +107,7 @@ func main() {
 	// 10. Workers
 	distWorker := worker.NewDistributionWorker(compRepo, distRepo, distSvc)
 	scheduler := worker.NewScheduler(distWorker)
+	_ = scheduler
 	// scheduler.Start(context.Background())
 	// defer scheduler.Stop()
 
