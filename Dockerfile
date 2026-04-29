@@ -61,7 +61,8 @@ COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 COPY --chown=goacbr:goacbr lib/ACBrNFeServicos.ini /app/lib/
 
 # Copy Schemas into /app/lib/Schemas/NFe/ — path expected by the INI (PathSchemas=/app/lib/Schemas/NFe)
-COPY --chown=goacbr:goacbr lib/Schemas/ /app/lib/Schemas/
+COPY --from=builder --chown=goacbr:goacbr /build/lib/Schemas/ /app/lib/Schemas/
+RUN find /app/lib/Schemas -type f | head -20 || echo "VAZIO OU INEXISTENTE"
 
 # Register library system-wide
 COPY lib/libacbrnfe64.so /usr/local/lib/
@@ -79,6 +80,6 @@ USER goacbr
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/healthz || exit 1
+    CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
 ENTRYPOINT ["/app/goacbr-api"]
