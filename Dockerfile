@@ -53,20 +53,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -r goacbr && useradd -r -g goacbr -d /app -s /sbin/nologin goacbr
 
 # Create required directories
-RUN mkdir -p /app/lib /app/data/Schemas /app/logs /app/tmp && \
+RUN mkdir -p /app/lib/Schemas /app/data/nfe /app/logs/acbr /app/tmp && \
     chown -R goacbr:goacbr /app
 
-# Copy ACBrLib shared library and dependencies
+# Copy ACBrLib shared library and config
 COPY --chown=goacbr:goacbr lib/libacbrnfe64.so /app/lib/
 COPY --chown=goacbr:goacbr lib/ACBrNFeServicos.ini /app/lib/
-COPY --chown=goacbr:goacbr lib/Schemas /app/lib/Schemas/
+
+# Copy Schemas into /app/lib/Schemas/NFe/ — path expected by the INI (PathSchemas=/app/lib/Schemas/NFe)
+COPY --chown=goacbr:goacbr lib/Schemas/ /app/lib/Schemas/
+
+# Register library system-wide
 COPY lib/libacbrnfe64.so /usr/local/lib/
 RUN ldconfig
 
 # Copy compiled binary from builder
 COPY --from=builder --chown=goacbr:goacbr /build/bin/goacbr-api /app/goacbr-api
-
-# Copy migrations (REMOVIDO: agora embutido no binário)
 
 # Set library path for ACBrLib
 ENV LD_LIBRARY_PATH=/app/lib
