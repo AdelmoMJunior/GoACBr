@@ -100,7 +100,7 @@ func configureHandleForCompany(
 	}
 	logPath := pool.LogPath
 	if logPath == "" {
-		logPath = "/tmp/acbr_logs/log.txt"
+		logPath = "/tmp/acbr_logs"
 	}
 	os.MkdirAll(logPath, 0755)
 
@@ -137,9 +137,9 @@ func configureHandleForCompany(
 		// [NFe] — NFe2.html (Configurações da Biblioteca)
 		"NFe": {
 			"Ambiente":                   ambiente,
-			"ModeloDF":                   "0", // moNFe (55)
-			"VersaoDF":                   "3", // ve400
-			"SSLType":                    "5", // LT_TLSv1_2
+			"ModeloDF":                   "55", // moNFe (55)
+			"VersaoDF":                   "4",  // ve400
+			"SSLType":                    "5",  // LT_TLSv1_2
 			"Timeout":                    "30000",
 			"Tentativas":                 "5",
 			"IntervaloTentativas":        "1000",
@@ -242,14 +242,23 @@ func getSections(content string) []string {
 // DumpACBrLog reads the ACBr log file, prints it to stdout, and truncates it.
 func DumpACBrLog(logPath string) {
 	if logPath == "" {
-		logPath = "/tmp/acbr_logs/log.txt"
+		logPath = "/tmp/acbr_logs"
 	}
-	content, err := os.ReadFile(logPath)
-	if err == nil && len(content) > 0 {
-		fmt.Println("\n========== ACBrLib LOG ==========")
-		fmt.Println(string(content))
-		fmt.Println("=================================")
-		// Truncate to avoid accumulating and printing old logs repeatedly
-		_ = os.Truncate(logPath, 0)
+	
+	// ACBrLib gera arquivos com extensão .log dentro da pasta configurada
+	files, err := filepath.Glob(filepath.Join(logPath, "*.log"))
+	if err != nil || len(files) == 0 {
+		// Tenta procurar log.txt caso tenha forçado
+		files, _ = filepath.Glob(filepath.Join(logPath, "*.txt"))
+	}
+	
+	for _, f := range files {
+		content, err := os.ReadFile(f)
+		if err == nil && len(content) > 0 {
+			fmt.Printf("\n========== ACBrLib LOG (%s) ==========\n", filepath.Base(f))
+			fmt.Println(string(content))
+			fmt.Println("======================================================")
+			_ = os.Truncate(f, 0)
+		}
 	}
 }
