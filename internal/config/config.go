@@ -89,6 +89,7 @@ type ACBrConfig struct {
 	LogPath     string
 	LogLevel    string
 	CryptKey    string
+	IniServicosPath string
 }
 
 type RateLimitConfig struct {
@@ -154,6 +155,7 @@ func Load() (*Config, error) {
 			LogPath:     getEnv("ACBR_LOG_PATH", "/tmp/acbr_logs"),
 			LogLevel:    getEnv("ACBR_LOG_LEVEL", "4"),
 			CryptKey:    getEnv("ACBR_CRYPT_KEY", "354#$_GoACBr_$#453"),
+			IniServicosPath: getEnv("ACBR_INI_SERVICOS_PATH", "/app/lib/ACBrNFeServicos.ini"),
 		},
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: getInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),

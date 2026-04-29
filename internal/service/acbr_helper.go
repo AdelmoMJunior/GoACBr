@@ -137,13 +137,14 @@ func configureHandleForCompany(
 		// [NFe] — NFe2.html (Configurações da Biblioteca)
 		"NFe": {
 			"Ambiente":                   ambiente,
-			"ModeloDF":                   "55", // moNFe (55)
-			"VersaoDF":                   "4",  // ve400
-			"SSLType":                    "5",  // LT_TLSv1_2
+			"ModeloDF":                   "1", // moNFe (55)
+			"VersaoDF":                   "3", // ve400
+			"SSLType":                    "5", // LT_TLSv1_2
 			"Timeout":                    "30000",
 			"Tentativas":                 "5",
 			"IntervaloTentativas":        "1000",
 			"PathSchemas":                schemasPath,
+			"IniServicos":                pool.IniServicosPath,
 			"PathSalvar":                 savePath,
 			"SalvarGer":                  "1",
 			"SalvarEvento":               "1",
@@ -244,14 +245,14 @@ func DumpACBrLog(logPath string) {
 	if logPath == "" {
 		logPath = "/tmp/acbr_logs"
 	}
-	
+
 	// ACBrLib gera arquivos com extensão .log dentro da pasta configurada
 	files, err := filepath.Glob(filepath.Join(logPath, "*.log"))
 	if err != nil || len(files) == 0 {
 		// Tenta procurar log.txt caso tenha forçado
 		files, _ = filepath.Glob(filepath.Join(logPath, "*.txt"))
 	}
-	
+
 	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err == nil && len(content) > 0 {

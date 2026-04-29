@@ -28,12 +28,13 @@ type HandlePool struct {
 	LogPath string
 	// IniDir is the directory where per-handle INI files are stored.
 	IniDir string
-	// CryptKey is the encryption key for ACBrLib configuration.
 	CryptKey string
+	// IniServicosPath is the path to ACBrNFeServicos.ini
+	IniServicosPath string
 }
 
 // NewHandlePool creates a new pool with the given capacity.
-func NewHandlePool(maxHandles int, schemasPath, logPath, cryptKey string) (*HandlePool, error) {
+func NewHandlePool(maxHandles int, schemasPath, logPath, cryptKey, iniServicosPath string) (*HandlePool, error) {
 	iniDir := "/tmp/acbr_ini"
 	os.MkdirAll(iniDir, 0700)
 
@@ -44,6 +45,7 @@ func NewHandlePool(maxHandles int, schemasPath, logPath, cryptKey string) (*Hand
 		LogPath:     logPath,
 		IniDir:      iniDir,
 		CryptKey:    cryptKey,
+		IniServicosPath: iniServicosPath,
 	}
 
 	// Pre-warm the pool with at least one handle

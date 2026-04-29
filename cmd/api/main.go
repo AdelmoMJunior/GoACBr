@@ -78,6 +78,7 @@ func main() {
 		cfg.ACBr.SchemasPath,
 		cfg.ACBr.LogPath,
 		cfg.ACBr.CryptKey,
+		cfg.ACBr.IniServicosPath,
 	)
 	if err != nil {
 		slog.Error("Failed to initialize ACBrLib pool", "error", err)
