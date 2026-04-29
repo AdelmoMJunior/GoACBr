@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"io"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,12 +26,14 @@ type CertificateService interface {
 
 type certificateService struct {
 	repo      repository.CertificateRepository
+	compRepo  repository.CompanyRepository
 	cryptoSvc crypto.Service
 }
 
-func NewCertificateService(repo repository.CertificateRepository, cryptoSvc crypto.Service) CertificateService {
+func NewCertificateService(repo repository.CertificateRepository, compRepo repository.CompanyRepository, cryptoSvc crypto.Service) CertificateService {
 	return &certificateService{
 		repo:      repo,
+		compRepo:  compRepo,
 		cryptoSvc: cryptoSvc,
 	}
 }
@@ -60,6 +64,21 @@ func (s *certificateService) Upload(ctx context.Context, companyID uuid.UUID, pa
 
 	if certX509 == nil {
 		return nil, apperror.NewBadRequest("no valid certificate found in PFX")
+	}
+
+	// Validate that the certificate CNPJ matches the company CNPJ
+	comp, err := s.compRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return nil, apperror.NewBadRequest("company not found")
+	}
+
+	certCN := certX509.Subject.CommonName
+	// Brazilian e-CNPJ certificates have the CNPJ in the CN field (e.g., "EMPRESA:03748056000117")
+	cnpjFromCert := extractCNPJFromCN(certCN)
+	if cnpjFromCert != "" && cnpjFromCert != comp.CNPJ {
+		return nil, apperror.NewBadRequest(
+			fmt.Sprintf("certificate CNPJ (%s) does not match company CNPJ (%s)", cnpjFromCert, comp.CNPJ),
+		)
 	}
 
 	encPassword, err := s.cryptoSvc.Encrypt([]byte(password))
@@ -124,4 +143,15 @@ func (s *certificateService) mapToResponse(c *domain.Certificate) *dto.Certifica
 		IsExpired:       now.After(c.ValidUntil),
 		CreatedAt:       c.CreatedAt,
 	}
+}
+
+// cnpjRegex matches a 14-digit CNPJ sequence.
+var cnpjRegex = regexp.MustCompile(`\d{14}`)
+
+// extractCNPJFromCN extracts a CNPJ from the certificate's Subject CN.
+// Brazilian e-CNPJ certs typically embed the CNPJ in the CN field,
+// either as "EMPRESA:12345678000190" or within the full CN string.
+func extractCNPJFromCN(cn string) string {
+	match := cnpjRegex.FindString(cn)
+	return match
 }

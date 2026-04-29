@@ -105,7 +105,9 @@ func configureHandleForCompany(
 	}
 
 	// 6. Load the INI into the handle
+	slog.Debug("Loading ACBr INI file", "path", iniPath)
 	if err := hd.ConfigLer(iniPath); err != nil {
+		slog.Error("ConfigLer failed", "path", iniPath, "error", err)
 		return fmt.Errorf("failed to load ACBr config: %w", err)
 	}
 

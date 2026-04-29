@@ -106,7 +106,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, sessRepo, tokenSvc)
 	userSvc := service.NewUserService(userRepo)
 	compSvc := service.NewCompanyService(compRepo, certRepo, cryptoSvc)
-	certSvc := service.NewCertificateService(certRepo, cryptoSvc)
+	certSvc := service.NewCertificateService(certRepo, compRepo, cryptoSvc)
 	nfeSvc := service.NewNFeService(compRepo, certRepo, invRepo, pool, storageProv, cryptoSvc)
 	evtSvc := service.NewEventService(compRepo, certRepo, invRepo, pool, cryptoSvc)
 	distSvc := service.NewDistributionService(compRepo, certRepo, distRepo, pool, cryptoSvc)
