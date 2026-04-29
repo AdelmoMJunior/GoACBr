@@ -26,56 +26,14 @@ func configureHandleForCompany(
 	certRepo repository.CertificateRepository,
 	cryptoSvc crypto.Service,
 ) error {
-	comp, err := compRepo.GetByID(ctx, companyID)
-	if err != nil {
-		return err
-	}
-
-	var pfxPath, password string
-	cert, err := certRepo.GetByCompanyID(ctx, companyID)
-	if err == nil && cert != nil {
-		slog.Debug("Found certificate for company, decrypting password...", "company_id", companyID)
-		// Decrypt password
-		passBytes, err := cryptoSvc.Decrypt(cert.PFXPasswordEnc)
-		if err == nil {
-			password = string(passBytes)
-		} else {
-			slog.Error("Failed to decrypt certificate password", "error", err)
-		}
-
-		slog.Debug("Decrypting PFX data...", "company_id", companyID)
-		// Decrypt PFX and save to temp file for ACBrLib
-		pfxEncData, err := cryptoSvc.Decrypt(string(cert.PFXData))
-		if err == nil {
-			tmpDir := filepath.Join(os.TempDir(), "goacbr", "certs")
-			os.MkdirAll(tmpDir, 0700)
-			pfxPath = filepath.Join(tmpDir, companyID.String()+".pfx")
-			slog.Debug("Writing PFX to temporary file", "path", pfxPath)
-			err = os.WriteFile(pfxPath, pfxEncData, 0600)
-			if err != nil {
-				slog.Error("Failed to write temporary PFX file", "error", err)
-			}
-		} else {
-			slog.Error("Failed to decrypt PFX data", "error", err)
-		}
-	} else {
-		slog.Warn("No certificate found for company", "company_id", companyID)
-	}
-
 	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
-	// Ensure valid values for numeric fields
-	amb := comp.Ambiente
-	if amb != 1 && amb != 2 {
-		amb = 2 // Default to Homologação
-	}
-
-	// Build INI Content - EXACTLY matching user's template but with Linux paths
-	iniContent := fmt.Sprintf(`[Principal]
+	// HARDCODED INI FOR TESTING
+	iniContent := `[Principal]
 TipoResposta=0
 CodificacaoResposta=0
 LogNivel=0
-LogPath=/app/logs/acbr
+LogPath=
 
 [Versao]
 ACBrLib=0.0.2
@@ -168,7 +126,7 @@ HardFlow=0
 
 [Proxy]
 Servidor=
-Porta=0
+Porta=
 Usuario=
 Senha=
 
@@ -199,46 +157,46 @@ Responsavel=
 SSLCryptLib=1
 SSLHttpLib=3
 SSLXmlSignLib=4
-UF=%s
+UF=BA
 TimeZone.Modo=0
 TimeZone.Str=
 URLPFX=
-ArquivoPFX=%s
+ArquivoPFX=Z:\CERTIFICADO\ROSIEL B. DE SOUZA_uti das maquinas 123456  11-12-2026.pfx
 DadosPFX=
-Senha=%s
+Senha=AgcHFxFp
 NumeroSerie=
 VerificarValidade=1
 
 [NFe]
 FormaEmissao=0
-SalvarGer=1
+SalvarGer=0
 ExibirErroSchema=1
-FormatoAlerta=TAG:%%TAGNIVEL%% ID:%%ID%%/%%TAG%%(%%DESCRICAO%%) - %%MSG%%.
+FormatoAlerta=TAG:%TAGNIVEL% ID:%ID%/%TAG%(%DESCRICAO%) - %MSG%.
 RetirarAcentos=1
 RetirarEspacos=1
 IdentarXML=0
 ValidarDigest=1
 IdCSC=
 CSC=
-ModeloDF=55
-VersaoDF=4.00
-AtualizarXMLCancelado=1
+ModeloDF=0
+VersaoDF=3
+AtualizarXMLCancelado=0
 VersaoQRCode=2
 CamposFatObrigatorios=1
 TagNT2018005=0
 ForcarGerarTagRejeicao906=0
-Ambiente=%d
-SalvarWS=1
+Ambiente=0
+SalvarWS=0
 Timeout=15000
 TimeoutPorThread=0
 Visualizar=0
-AjustaAguardaConsultaRet=1
-AguardarConsultaRet=5000
+AjustaAguardaConsultaRet=0
+AguardarConsultaRet=0
 IntervaloTentativas=1000
 Tentativas=5
 SSLType=5
 QuebradeLinha=|
-PathSalvar=/app/data/nfe
+PathSalvar=Z:\AMSOFT NOVO\XML
 PathSchemas=/app/lib/Schemas/NFe
 IniServicos=
 SalvarArq=1
@@ -249,41 +207,21 @@ SepararPorModelo=1
 SepararPorAno=1
 SepararPorMes=1
 SepararPorDia=0
-Download.PathDownload=/app/data/nfe/download
+Download.PathDownload=Z:\AMSOFT NOVO\XML\DOWNLOAD
 Download.SepararPorNome=0
 SalvarEvento=1
 SalvarApenasNFeProcessadas=1
 EmissaoPathNFe=0
 NormatizarMunicipios=0
-PathNFe=/app/data/nfe/xml
-PathInu=/app/data/nfe/inutilizacao
-PathEvento=/app/data/nfe/evento
-PathArquivoMunicipios=/app/data/nfe/municipio
+PathNFe=Z:\AMSOFT NOVO\XML\XML
+PathInu=Z:\AMSOFT NOVO\XML\INUTILIZACAO
+PathEvento=Z:\AMSOFT NOVO\XML\EVENTO
+PathArquivoMunicipios=Z:\AMSOFT NOVO\XML\MUNICIPIO
 IdCSRT=0
 CSRT=
 
-[WebService]
-UF=%s
-Ambiente=%d
-Visualizar=0
-Salvar=1
-AjustaAguarda=1
-Aguardar=5000
-Tentativas=5
-IntervaloTentativas=3000
-TimeZone=-3
-
-[Arquivos]
-Salvar=1
-SepararPorMes=1
-SepararPorCNPJ=1
-SepararPorModelo=1
-AdicionarLiteral=1
-PathSalvar=/app/data/nfe
-PathSchemas=/app/lib/Schemas/NFe
-
 [DANFE]
-PathPDF=/app/data/nfe/pdf
+PathPDF=Z:\AMSOFT NOVO\XML\DANFE
 UsaSeparadorPathPDF=0
 Impressora=
 NomeDocumento=
@@ -295,7 +233,7 @@ PathLogo=
 MargemInferior=8
 MargemSuperior=8
 MargemEsquerda=6
-MargemDireita=5
+MargemDireita=5,1
 AlterarEscalaPadrao=0
 NovaEscala=96
 ExpandeLogoMarca=0
@@ -389,7 +327,7 @@ TamanhoLogoHeight=50
 TamanhoLogoWidth=77
 DescricaoPagamentos=[icaTipo,icaBandeira]
 ImprimeEmUmaLinha=0
-ImprimeEmDuasLinhas=0
+ImprimeEmDuasLines=0
 MargemInferior=0
 MargemSuperior=0
 MargemEsquerda=0
@@ -401,8 +339,7 @@ FonteLinhaItem.Bold=0
 FonteLinhaItem.Italic=0
 FonteLinhaItem.Underline=0
 FonteLinhaItem.StrikeOut=0
-FormatarNumeroDocumento=1
-`, comp.UF, pfxPath, password, amb, comp.UF, amb)
+FormatarNumeroDocumento=1`
 
 	slog.Debug("Generated INI content (Turbo Mode)", "ini", iniContent)
 
@@ -451,7 +388,6 @@ FormatarNumeroDocumento=1
 }
 
 // extractFromINI helper to extract fields from ACBr INI response.
-// If section is provided, it searches only within that section.
 func extractFromINI(content, section, key string) string {
 	lines := strings.Split(content, "\n")
 	prefix := key + "="
@@ -492,8 +428,6 @@ func parseINIDecimal(s string) decimal.Decimal {
 }
 
 func parseINITime(s string) time.Time {
-	// ACBr INI usually uses dd/mm/yyyy hh:mm:ss or yyyy-mm-ddThh:mm:ss
-	// We try to handle common formats
 	formats := []string{
 		"2006-01-02T15:04:05-07:00",
 		"02/01/2006 15:04:05",
