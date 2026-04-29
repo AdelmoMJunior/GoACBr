@@ -37,12 +37,15 @@ func UFToCode(uf string) int {
 	return 91
 }
 
-// configureHandleForCompany uses a 3-step approach:
-//  1. ConfigGravar — ACBr dumps a valid default INI (all fields have valid types)
-//  2. ConfigLer   — Load that valid INI back into the handle
-//  3. ConfigGravarValor — Override ONLY the company-specific fields via the API
+// configureHandleForCompany configures an ACBr handle for a specific company.
 //
-// This avoids the "invalid integer" error from hand-crafted INI files.
+// Since handles are initialized with a real INI file path (NFE_Inicializar),
+// all config sections ([Principal], [DFe], [NFe], [DANFE]) are registered
+// with valid defaults. We just override the company-specific values via
+// ConfigGravarValor using the exact key names from the ACBrLib docs:
+//   - https://acbr.sourceforge.io/ACBrLib/Geral.html       → [Principal]
+//   - https://acbr.sourceforge.io/ACBrLib/DFe.html          → [DFe]
+//   - https://acbr.sourceforge.io/ACBrLib/NFe2.html          → [NFe]
 func configureHandleForCompany(
 	ctx context.Context,
 	hd *acbr.Handle,
@@ -91,26 +94,7 @@ func configureHandleForCompany(
 		"ambiente", comp.Ambiente,
 	)
 
-	// 5. Step 1: Let ACBr generate a valid default INI file
-	iniDir := "/tmp/acbr_ini"
-	os.MkdirAll(iniDir, 0700)
-	iniPath := filepath.Join(iniDir, companyID.String()+".ini")
-
-	if err := hd.ConfigGravar(iniPath); err != nil {
-		slog.Error("ConfigGravar failed", "path", iniPath, "error", err)
-		return fmt.Errorf("failed to generate default ACBr config: %w", err)
-	}
-
-	// 6. Step 2: Load the valid default INI back into the handle
-	if err := hd.ConfigLer(iniPath); err != nil {
-		slog.Error("ConfigLer failed on default INI", "path", iniPath, "error", err)
-		return fmt.Errorf("failed to load default ACBr config: %w", err)
-	}
-	slog.Debug("Default INI loaded successfully", "path", iniPath)
-
-	// 7. Step 3: Override company-specific values via ConfigGravarValor
-	//    Use ONLY the keys proven to work from the ACBr API.
-
+	// 5. Prepare paths
 	schemasPath := pool.SchemasPath
 	if schemasPath == "" {
 		schemasPath = "/app/data/Schemas/NFe"
@@ -126,55 +110,68 @@ func configureHandleForCompany(
 	os.MkdirAll(savePath, 0755)
 	os.MkdirAll(pdfPath, 0755)
 
-	ambiente := strconv.Itoa(int(comp.Ambiente))
-	if comp.Ambiente == 0 {
-		ambiente = "2"
+	// Ambiente: 0=taProducao, 1=taHomologacao (ACBr uses 0-indexed)
+	ambiente := "1" // default homologação
+	if comp.Ambiente == 1 {
+		ambiente = "0" // produção
 	}
 
-	// Each entry: {section, key, value}
-	// These are the fields we override from the defaults.
-	// We log-and-skip on error instead of failing hard, since some keys
-	// may or may not exist depending on the ACBr version.
-	configs := []struct{ section, key, value string }{
-		// Principal
-		{"Principal", "TipoResposta", "2"},
-		{"Principal", "LogNivel", "3"},
-		{"Principal", "LogPath", logPath},
-
-		// DFe — certificate
-		{"DFe", "SSLCryptLib", "1"},
-		{"DFe", "SSLHttpLib", "3"},
-		{"DFe", "SSLXmlSignLib", "4"},
-		{"DFe", "ArquivoPFX", pfxPath},
-		{"DFe", "Senha", pfxPassword},
-		{"DFe", "VerificarValidade", "1"},
-
-		// NFe — paths and schemas (using "NFE" section name for API)
-		{"NFE", "PathSchemas", schemasPath},
-		{"NFE", "PathSalvar", savePath},
-		{"NFE", "Ambiente", ambiente},
-
-		// DANFE
-		{"DANFE", "PathPDF", pdfPath},
+	// 6. Apply company config via ConfigGravarValor
+	//    Key names match the ACBrLib documentation exactly.
+	configs := map[string]map[string]string{
+		// [Principal] — Geral.html
+		"Principal": {
+			"TipoResposta": "2", // JSON
+			"LogNivel":     "3", // Completo
+			"LogPath":      logPath,
+		},
+		// [DFe] — DFe.html
+		"DFe": {
+			"SSLCryptLib":      "1", // cryOpenSSL
+			"SSLHttpLib":       "3", // httpOpenSSL
+			"SSLXmlSignLib":    "4", // xsLibXml2
+			"UF":               comp.UF,
+			"ArquivoPFX":       pfxPath,
+			"Senha":            pfxPassword,
+			"VerificarValidade": "1",
+		},
+		// [NFe] — NFe2.html (Configurações da Biblioteca)
+		"NFe": {
+			"Ambiente":     ambiente,
+			"ModeloDF":     "0",    // moNFe (55)
+			"VersaoDF":     "3",    // ve400
+			"SSLType":      "5",    // LT_TLSv1_2
+			"Timeout":      "30000",
+			"Tentativas":   "5",
+			"IntervaloTentativas": "1000",
+			"PathSchemas":  schemasPath,
+			"PathSalvar":   savePath,
+			"SalvarGer":    "1",
+			"SalvarEvento": "1",
+			"SalvarApenasNFeProcessadas": "1",
+			"NormatizarMunicipios":       "1",
+			"ExibirErroSchema":           "1",
+			"EmissaoPathNFe":             "1",
+		},
+		// [DANFE]
+		"DANFE": {
+			"PathPDF": pdfPath,
+		},
 	}
 
-	for _, c := range configs {
-		if err := hd.ConfigGravarValor(c.section, c.key, c.value); err != nil {
-			// Log but don't fail — some keys may not exist in all ACBr versions
-			slog.Warn("ConfigGravarValor skipped (key may not exist)",
-				"section", c.section, "key", c.key, "error", err)
-		}
-	}
+	hd.ApplyCompanyConfig(configs)
 
-	// Save the final config back to disk (so next handle load can reuse it)
-	hd.ConfigGravar(iniPath)
+	// 7. Save the final state back to the handle's INI file
+	if hd.IniPath != "" {
+		hd.ConfigGravar(hd.IniPath)
+	}
 
 	hd.ConfiguredFor = companyID
 	slog.Info("ACBr handle configured successfully", "company_id", companyID)
 	return nil
 }
 
-// extractFromINI helper to extract fields from ACBr INI response.
+// extractFromINI helper to extract fields from ACBr INI/JSON response.
 func extractFromINI(content, section, key string) string {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	prefix := key + "="

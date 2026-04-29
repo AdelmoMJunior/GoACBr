@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+// handleCounter generates unique IDs for handle INI files.
+var handleCounter int64
+
 // HandlePool manages a pool of ACBrLibNFe handles.
-// Since handles are expensive to create and we want to optimize configuration
-// time, we maintain a pool of them. If a handle is already configured for a
-// specific CNPJ, we prefer to reuse it to avoid rewriting all config sections.
 type HandlePool struct {
 	handles    []*Handle
 	maxHandles int
@@ -23,19 +26,25 @@ type HandlePool struct {
 	SchemasPath string
 	// LogPath is the absolute path where ACBrLib should write its logs.
 	LogPath string
+	// IniDir is the directory where per-handle INI files are stored.
+	IniDir string
 }
 
 // NewHandlePool creates a new pool with the given capacity.
 func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, error) {
+	iniDir := "/tmp/acbr_ini"
+	os.MkdirAll(iniDir, 0700)
+
 	pool := &HandlePool{
 		handles:     make([]*Handle, 0, maxHandles),
 		maxHandles:  maxHandles,
 		SchemasPath: schemasPath,
 		LogPath:     logPath,
+		IniDir:      iniDir,
 	}
 
 	// Pre-warm the pool with at least one handle
-	h, err := NewHandle()
+	h, err := pool.createHandle()
 	if err != nil {
 		return nil, fmt.Errorf("failed to pre-warm pool: %w", err)
 	}
@@ -45,6 +54,13 @@ func NewHandlePool(maxHandles int, schemasPath, logPath string) (*HandlePool, er
 	go pool.janitor()
 
 	return pool, nil
+}
+
+// createHandle creates a new ACBr handle with a unique INI file.
+func (p *HandlePool) createHandle() (*Handle, error) {
+	id := atomic.AddInt64(&handleCounter, 1)
+	iniPath := filepath.Join(p.IniDir, fmt.Sprintf("handle_%d.ini", id))
+	return NewHandle(iniPath)
 }
 
 // GetHandle retrieves a handle from the pool, preferably one already configured for companyID.
@@ -62,7 +78,7 @@ func (p *HandlePool) GetHandle(ctx context.Context, companyID uuid.UUID) (*Handl
 
 			// 2. If we can create a new one, do it outside the lock
 			if canCreate {
-				newH, err := NewHandle()
+				newH, err := p.createHandle()
 				if err == nil {
 					p.mu.Lock()
 					if len(p.handles) < p.maxHandles {
@@ -124,16 +140,13 @@ func (p *HandlePool) Close() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, h := range p.handles {
-		// Handles should not be in use when Close is called.
-		// We try-lock to be safe, then destroy.
 		h.mu.TryLock()
 		_ = h.Destroy()
-		// Don't unlock — handle is dead
 	}
 	p.handles = nil
 }
 
-// janitor cleans up handles that have been idle for too long to save memory.
+// janitor cleans up handles that have been idle for too long.
 func (p *HandlePool) janitor() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -146,8 +159,6 @@ func (p *HandlePool) janitor() {
 		for _, h := range p.handles {
 			if h.mu.TryLock() {
 				if now.Sub(h.LastUsed) > 30*time.Minute && len(activeHandles) > 0 {
-					// Destroy idle handle (mutex is held, no deadlock since
-					// Destroy no longer locks internally)
 					_ = h.Destroy()
 					h.mu.Unlock()
 					continue
