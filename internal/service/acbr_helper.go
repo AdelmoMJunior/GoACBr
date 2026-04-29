@@ -15,6 +15,7 @@ import (
 
 	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
 	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
+	"github.com/AdelmoMJunior/GoACBr/internal/domain"
 	"github.com/AdelmoMJunior/GoACBr/internal/repository"
 )
 
@@ -37,9 +38,10 @@ func UFToCode(uf string) int {
 	return 91
 }
 
-// configureHandleForCompany fetches real company/cert data from DB and
-// applies it to the ACBr handle. This is the single source of truth for
-// all ACBr INI configuration.
+// configureHandleForCompany fetches real company/cert data from DB,
+// generates a complete ACBrLib INI file, and loads it into the handle.
+// This approach is more reliable than ConfigGravarValor because the INI
+// format section/key names are well-documented and stable.
 func configureHandleForCompany(
 	ctx context.Context,
 	hd *acbr.Handle,
@@ -90,66 +92,22 @@ func configureHandleForCompany(
 		"ambiente", comp.Ambiente,
 	)
 
-	// 5. Apply all configuration sections
-	// [Principal]
-	hd.ConfigGravarValor("Principal", "TipoResposta", "2") // 2 = JSON
-	hd.ConfigGravarValor("Principal", "LogNivel", "3")
-	if pool.LogPath != "" {
-		hd.ConfigGravarValor("Principal", "LogPath", pool.LogPath)
+	// 5. Generate the complete INI content and write to file
+	iniContent := generateACBrINI(comp, pfxPath, pfxPassword, pool)
+
+	iniDir := "/tmp/acbr_ini"
+	if err := os.MkdirAll(iniDir, 0700); err != nil {
+		return fmt.Errorf("failed to create ini dir: %w", err)
+	}
+	iniPath := filepath.Join(iniDir, companyID.String()+".ini")
+	if err := os.WriteFile(iniPath, []byte(iniContent), 0600); err != nil {
+		return fmt.Errorf("failed to write INI file: %w", err)
 	}
 
-	// [DFe] — SSL / Certificate
-	hd.ConfigGravarValor("DFe", "SSLCryptLib", "1")    // OpenSSL
-	hd.ConfigGravarValor("DFe", "SSLHttpLib", "3")     // WinHTTP/OpenSSL
-	hd.ConfigGravarValor("DFe", "SSLXmlSignLib", "4")  // libxml2
-	hd.ConfigGravarValor("DFe", "SSLType", "5")        // TLS 1.2
-	hd.ConfigGravarValor("DFe", "ArquivoPFX", pfxPath)
-	hd.ConfigGravarValor("DFe", "Senha", pfxPassword)
-	hd.ConfigGravarValor("DFe", "VerificarValidade", "1")
-	hd.ConfigGravarValor("DFe", "Timeout", "15000")
-	hd.ConfigGravarValor("DFe", "Tentativas", "5")
-	hd.ConfigGravarValor("DFe", "IntervaloTentativas", "1000")
-
-	// [WebService] — UF and environment from company data
-	hd.ConfigGravarValor("WebService", "UF", comp.UF)
-	hd.ConfigGravarValor("WebService", "Ambiente", strconv.Itoa(int(comp.Ambiente)))
-	hd.ConfigGravarValor("WebService", "Salvar", "1")
-	hd.ConfigGravarValor("WebService", "AjustaAguarda", "1")
-	hd.ConfigGravarValor("WebService", "Aguardar", "5000")
-	hd.ConfigGravarValor("WebService", "Tentativas", "5")
-	hd.ConfigGravarValor("WebService", "IntervaloTentativas", "1000")
-
-	// [NFe] — Model, version, schema path
-	hd.ConfigGravarValor("NFe", "ModeloDF", "55")
-	hd.ConfigGravarValor("NFe", "VersaoDF", "4.00")
-	hd.ConfigGravarValor("NFe", "SalvarXML", "1")
-	hd.ConfigGravarValor("NFe", "SalvarEvento", "1")
-	hd.ConfigGravarValor("NFe", "SalvarApenasNFeProcessadas", "1")
-	hd.ConfigGravarValor("NFe", "NormatizarMunicipios", "1")
-	hd.ConfigGravarValor("NFe", "ExibirErroSchema", "1")
-
-	// CSC/IdCSC for NFCe
-	if comp.CSCID != "" {
-		hd.ConfigGravarValor("NFe", "IdCSC", comp.CSCID)
+	// 6. Load the INI into the handle
+	if err := hd.ConfigLer(iniPath); err != nil {
+		return fmt.Errorf("failed to load ACBr config: %w", err)
 	}
-	if comp.CSCToken != "" {
-		hd.ConfigGravarValor("NFe", "CSC", comp.CSCToken)
-	}
-
-	// [Arquivos] — Save paths and schemas
-	hd.ConfigGravarValor("Arquivos", "Salvar", "1")
-	hd.ConfigGravarValor("Arquivos", "SepararPorMes", "1")
-	hd.ConfigGravarValor("Arquivos", "SepararPorCNPJ", "1")
-	hd.ConfigGravarValor("Arquivos", "SepararPorModelo", "1")
-	hd.ConfigGravarValor("Arquivos", "AdicionarLiteral", "1")
-	hd.ConfigGravarValor("Arquivos", "EmissaoPathNFe", "1")
-	hd.ConfigGravarValor("Arquivos", "PathSalvar", "/tmp/acbr_nfe/"+companyID.String()+"/")
-	if pool.SchemasPath != "" {
-		hd.ConfigGravarValor("Arquivos", "PathSchemas", pool.SchemasPath)
-	}
-
-	// [DANFE] — PDF output path
-	hd.ConfigGravarValor("DANFE", "PathPDF", "/tmp/acbr_pdf/"+companyID.String()+"/")
 
 	// Ensure output directories exist
 	os.MkdirAll("/tmp/acbr_nfe/"+companyID.String(), 0755)
@@ -158,6 +116,109 @@ func configureHandleForCompany(
 	hd.ConfiguredFor = companyID
 	slog.Info("ACBr handle configured successfully", "company_id", companyID)
 	return nil
+}
+
+// generateACBrINI creates a complete ACBrLib.ini content string for a company.
+// Section and key names here match the INI file format exactly.
+func generateACBrINI(comp *domain.Company, pfxPath, pfxPassword string, pool *acbr.HandlePool) string {
+	schemasPath := pool.SchemasPath
+	if schemasPath == "" {
+		schemasPath = "/app/data/Schemas/NFe"
+	}
+
+	logPath := pool.LogPath
+	if logPath == "" {
+		logPath = "/tmp/acbr_logs"
+	}
+	os.MkdirAll(logPath, 0755)
+
+	savePath := "/tmp/acbr_nfe/" + comp.ID.String() + "/"
+	pdfPath := "/tmp/acbr_pdf/" + comp.ID.String() + "/"
+
+	ambiente := strconv.Itoa(int(comp.Ambiente))
+	if comp.Ambiente == 0 {
+		ambiente = "2" // Default to homologação
+	}
+
+	var b strings.Builder
+
+	// [Principal]
+	b.WriteString("[Principal]\n")
+	b.WriteString("TipoResposta=2\n")      // JSON
+	b.WriteString("CodificacaoResposta=0\n") // UTF-8
+	b.WriteString("LogNivel=3\n")
+	b.WriteString("LogPath=" + logPath + "\n")
+	b.WriteString("\n")
+
+	// [DFe] — SSL and Certificate
+	b.WriteString("[DFe]\n")
+	b.WriteString("SSLLib=1\n")       // OpenSSL
+	b.WriteString("CryptLib=1\n")     // OpenSSL
+	b.WriteString("HttpLib=3\n")      // libcurl/OpenSSL
+	b.WriteString("XmlSignLib=4\n")   // libxml2
+	b.WriteString("SSLType=5\n")      // TLS 1.2
+	b.WriteString("ArquivoPFX=" + pfxPath + "\n")
+	b.WriteString("Senha=" + pfxPassword + "\n")
+	b.WriteString("VerificarValidade=1\n")
+	b.WriteString("AguardarConsultaRet=0\n")
+	b.WriteString("IntervaloTentativas=1000\n")
+	b.WriteString("Tentativas=5\n")
+	b.WriteString("Timeout=15000\n")
+	b.WriteString("QuebradeLinha=|\n")
+	b.WriteString("\n")
+
+	// [NFe] — Model, version, behavior
+	b.WriteString("[NFe]\n")
+	b.WriteString("FormaEmissao=0\n")
+	b.WriteString("ModeloDF=55\n")
+	b.WriteString("VersaoDF=4.00\n")
+	b.WriteString("SalvarTXT=0\n")
+	b.WriteString("SalvarXML=1\n")
+	b.WriteString("SalvarEvento=1\n")
+	b.WriteString("SalvarApenasNFeProcessadas=1\n")
+	b.WriteString("EmissaoPathNFe=1\n")
+	b.WriteString("NormatizarMunicipios=1\n")
+	b.WriteString("ExibirErroSchema=1\n")
+	b.WriteString("SalvarGer=1\n")
+	b.WriteString("AtualizarXMLCancelado=1\n")
+	if comp.CSCID != "" {
+		b.WriteString("IdCSC=" + comp.CSCID + "\n")
+	}
+	if comp.CSCToken != "" {
+		b.WriteString("CSC=" + comp.CSCToken + "\n")
+	}
+	b.WriteString("\n")
+
+	// [WebService] — UF and environment
+	b.WriteString("[WebService]\n")
+	b.WriteString("UF=" + comp.UF + "\n")
+	b.WriteString("Ambiente=" + ambiente + "\n")
+	b.WriteString("Visualizar=0\n")
+	b.WriteString("Salvar=1\n")
+	b.WriteString("AjustaAguarda=1\n")
+	b.WriteString("Aguardar=5000\n")
+	b.WriteString("Tentativas=5\n")
+	b.WriteString("IntervaloTentativas=1000\n")
+	b.WriteString("\n")
+
+	// [Arquivos] — Storage paths and schemas
+	b.WriteString("[Arquivos]\n")
+	b.WriteString("Salvar=1\n")
+	b.WriteString("SepararPorMes=1\n")
+	b.WriteString("SepararPorCNPJ=1\n")
+	b.WriteString("SepararPorModelo=1\n")
+	b.WriteString("AdicionarLiteral=1\n")
+	b.WriteString("EmissaoPathNFe=1\n")
+	b.WriteString("PathSalvar=" + savePath + "\n")
+	b.WriteString("PathSchemas=" + schemasPath + "\n")
+	b.WriteString("\n")
+
+	// [DANFE] — PDF output
+	b.WriteString("[DANFE]\n")
+	b.WriteString("PathPDF=" + pdfPath + "\n")
+	b.WriteString("\n")
+
+	return b.String()
 }
 
 // extractFromINI helper to extract fields from ACBr INI response.
