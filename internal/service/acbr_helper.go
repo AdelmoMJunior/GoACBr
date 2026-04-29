@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -127,27 +126,27 @@ func configureHandleForCompany(
 		},
 		// [DFe] — DFe.html
 		"DFe": {
-			"SSLCryptLib":      "1", // cryOpenSSL
-			"SSLHttpLib":       "3", // httpOpenSSL
-			"SSLXmlSignLib":    "4", // xsLibXml2
-			"UF":               comp.UF,
-			"ArquivoPFX":       pfxPath,
-			"Senha":            pfxPassword,
+			"SSLCryptLib":       "1", // cryOpenSSL
+			"SSLHttpLib":        "3", // httpOpenSSL
+			"SSLXmlSignLib":     "4", // xsLibXml2
+			"UF":                comp.UF,
+			"ArquivoPFX":        pfxPath,
+			"Senha":             pfxPassword,
 			"VerificarValidade": "1",
 		},
 		// [NFe] — NFe2.html (Configurações da Biblioteca)
 		"NFe": {
-			"Ambiente":     ambiente,
-			"ModeloDF":     "0",    // moNFe (55)
-			"VersaoDF":     "3",    // ve400
-			"SSLType":      "5",    // LT_TLSv1_2
-			"Timeout":      "30000",
-			"Tentativas":   "5",
-			"IntervaloTentativas": "1000",
-			"PathSchemas":  schemasPath,
-			"PathSalvar":   savePath,
-			"SalvarGer":    "1",
-			"SalvarEvento": "1",
+			"Ambiente":                   ambiente,
+			"ModeloDF":                   "0", // moNFe (55)
+			"VersaoDF":                   "3", // ve400
+			"SSLType":                    "5", // LT_TLSv1_2
+			"Timeout":                    "30000",
+			"Tentativas":                 "5",
+			"IntervaloTentativas":        "1000",
+			"PathSchemas":                schemasPath,
+			"PathSalvar":                 savePath,
+			"SalvarGer":                  "1",
+			"SalvarEvento":               "1",
 			"SalvarApenasNFeProcessadas": "1",
 			"NormatizarMunicipios":       "1",
 			"ExibirErroSchema":           "1",
