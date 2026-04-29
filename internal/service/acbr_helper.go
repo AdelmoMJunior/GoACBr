@@ -27,7 +27,7 @@ func configureHandleForCompany(
 ) error {
 	slog.Debug("Applying company configuration via INI file", "company_id", companyID)
 
-	// HARDCODED INI FOR TESTING
+	// HARDCODED INI FOR TESTING - USING LINUX PATHS TO AVOID FREEZE
 	iniContent := `[Principal]
 TipoResposta=0
 CodificacaoResposta=0
@@ -125,7 +125,7 @@ HardFlow=0
 
 [Proxy]
 Servidor=
-Porta=
+Porta=0
 Usuario=
 Senha=
 
@@ -160,7 +160,7 @@ UF=BA
 TimeZone.Modo=0
 TimeZone.Str=
 URLPFX=
-ArquivoPFX=Z:\CERTIFICADO\ROSIEL B. DE SOUZA_uti das maquinas 123456  11-12-2026.pfx
+ArquivoPFX=/app/lib/ACBrNFeServicos.ini
 DadosPFX=
 Senha=AgcHFxFp
 NumeroSerie=
@@ -177,25 +177,25 @@ IdentarXML=0
 ValidarDigest=1
 IdCSC=
 CSC=
-ModeloDF=0
-VersaoDF=3
-AtualizarXMLCancelado=0
+ModeloDF=55
+VersaoDF=4.00
+AtualizarXMLCancelado=1
 VersaoQRCode=2
 CamposFatObrigatorios=1
 TagNT2018005=0
 ForcarGerarTagRejeicao906=0
-Ambiente=0
+Ambiente=2
 SalvarWS=0
 Timeout=15000
 TimeoutPorThread=0
 Visualizar=0
-AjustaAguardaConsultaRet=0
-AguardarConsultaRet=0
+AjustaAguardaConsultaRet=1
+AguardarConsultaRet=5000
 IntervaloTentativas=1000
 Tentativas=5
 SSLType=5
 QuebradeLinha=|
-PathSalvar=Z:\AMSOFT NOVO\XML
+PathSalvar=/app/data/nfe
 PathSchemas=/app/lib/Schemas/NFe
 IniServicos=
 SalvarArq=1
@@ -206,21 +206,21 @@ SepararPorModelo=1
 SepararPorAno=1
 SepararPorMes=1
 SepararPorDia=0
-Download.PathDownload=Z:\AMSOFT NOVO\XML\DOWNLOAD
+Download.PathDownload=/app/data/nfe/download
 Download.SepararPorNome=0
 SalvarEvento=1
 SalvarApenasNFeProcessadas=1
 EmissaoPathNFe=0
 NormatizarMunicipios=0
-PathNFe=Z:\AMSOFT NOVO\XML\XML
-PathInu=Z:\AMSOFT NOVO\XML\INUTILIZACAO
-PathEvento=Z:\AMSOFT NOVO\XML\EVENTO
-PathArquivoMunicipios=Z:\AMSOFT NOVO\XML\MUNICIPIO
+PathNFe=/app/data/nfe/xml
+PathInu=/app/data/nfe/inutilizacao
+PathEvento=/app/data/nfe/evento
+PathArquivoMunicipios=/app/data/nfe/municipio
 IdCSRT=0
 CSRT=
 
 [DANFE]
-PathPDF=Z:\AMSOFT NOVO\XML\DANFE
+PathPDF=/app/data/nfe/pdf
 UsaSeparadorPathPDF=0
 Impressora=
 NomeDocumento=
@@ -232,7 +232,7 @@ PathLogo=
 MargemInferior=8
 MargemSuperior=8
 MargemEsquerda=6
-MargemDireita=5,1
+MargemDireita=5
 AlterarEscalaPadrao=0
 NovaEscala=96
 ExpandeLogoMarca=0
