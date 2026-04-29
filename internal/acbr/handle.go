@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/google/uuid"
 )
@@ -18,11 +20,11 @@ import (
 // ACBrLib is NOT thread-safe for parallel calls on the SAME handle.
 // Thus, each handle must be protected by a Mutex.
 type Handle struct {
-	h            C.handle
-	mu           sync.Mutex
+	h             C.handle
+	mu            sync.Mutex
 	ConfiguredFor uuid.UUID // CompanyID currently loaded in this handle
-	LastUsed     time.Time
-	ConfigPath   string
+	LastUsed      time.Time
+	ConfigPath    string
 }
 
 // NewHandle initializes a new ACBrLibNFe handle.
@@ -112,13 +114,13 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 		for key, val := range keys {
 			cKey, freeKey := allocCString(key)
 			cVal, freeVal := allocCString(val)
-			
+
 			slog.Debug("Setting ACBr config", "section", section, "key", key)
 			res := C.NFE_ConfigGravarValor(hd.h, cSection, cKey, cVal)
-			
+
 			freeKey()
 			freeVal()
-			
+
 			if res != 0 {
 				slog.Error("Failed to set ACBr config", "section", section, "key", key, "res", res)
 				freeSection()
@@ -133,14 +135,23 @@ func (hd *Handle) ApplyCompanyConfig(companyID uuid.UUID, configs map[string]map
 	return nil
 }
 
-// ConfigLer loads a configuration file into the handle.
 func (hd *Handle) ConfigLer(path string) error {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	hd.LastUsed = time.Now()
+
 	cPath, freePath := allocCString(path)
 	defer freePath()
 
 	res := C.NFE_ConfigLer(hd.h, cPath)
 	if res != 0 {
-		return libError(hd.h, "failed to load config file")
+		// Captura mensagem real da ACBrLib
+		var bufferSize C.int = 4096
+		buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
+		defer C.free(unsafe.Pointer(buffer))
+		C.NFE_UltimoRetorno(hd.h, buffer, &bufferSize)
+		msg := strings.TrimSpace(C.GoString(buffer))
+		return fmt.Errorf("failed to load config file: [acbr] %s", msg)
 	}
 	return nil
 }
