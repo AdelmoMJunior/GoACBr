@@ -247,9 +247,18 @@ func (hd *Handle) StatusServico() (string, error) {
 	slog.Debug("Calling NFE_StatusServico")
 	res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
 	if res != 0 {
-		err := libError(hd.h, "failed to query SEFAZ status")
-		slog.Error("NFE_StatusServico failed", "error", err)
-		return "", err
+		// Get detailed error from ACBr
+		var errBufSize C.int = 8192
+		errBuf := (*C.char)(C.malloc(C.size_t(errBufSize)))
+		defer C.free(unsafe.Pointer(errBuf))
+		C.NFE_UltimoRetorno(hd.h, errBuf, &errBufSize)
+		acbrErr := C.GoString(errBuf)
+
+		slog.Error("NFE_StatusServico failed",
+			"res_code", res,
+			"acbr_error", acbrErr,
+		)
+		return "", fmt.Errorf("SEFAZ StatusServico error (code %d): %s", res, acbrErr)
 	}
 	slog.Debug("NFE_StatusServico success")
 
