@@ -8,10 +8,12 @@ package acbr
 */
 import "C"
 import (
-	"fmt"
-	"log/slog"
-	"time"
-	"unsafe"
+    "fmt"
+    "log/slog"
+    "time"
+    "unsafe"
+    "os"
+    "path/filepath"
 )
 
 // All methods in this file follow the Handle LOCKING CONTRACT:
@@ -246,6 +248,8 @@ func (hd *Handle) StatusServico() (string, error) {
 
     slog.Debug("Calling NFE_StatusServico")
     res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
+    // Dump ACBr logs after the service status call to aid debugging
+    logACBrLogs()
     // Even on success, fetch the last ACBr retorno to aid debugging in case
     // the service status is not fully informative (e.g., when cStat=0).
     if res == 0 {
@@ -258,13 +262,13 @@ func (hd *Handle) StatusServico() (string, error) {
             slog.Debug("NFE_StatusServico last retorno", "acbr_err", acbrErr)
         }
     }
-	if res != 0 {
-		// Get detailed error from ACBr
-		var errBufSize C.int = 8192
-		errBuf := (*C.char)(C.malloc(C.size_t(errBufSize)))
-		defer C.free(unsafe.Pointer(errBuf))
-		C.NFE_UltimoRetorno(hd.h, errBuf, &errBufSize)
-		acbrErr := C.GoString(errBuf)
+    if res != 0 {
+        // Get detailed error from ACBr
+        var errBufSize C.int = 8192
+        errBuf := (*C.char)(C.malloc(C.size_t(errBufSize)))
+        defer C.free(unsafe.Pointer(errBuf))
+        C.NFE_UltimoRetorno(hd.h, errBuf, &errBufSize)
+        acbrErr := C.GoString(errBuf)
 
 		slog.Error("NFE_StatusServico failed",
 			"res_code", res,
@@ -272,7 +276,33 @@ func (hd *Handle) StatusServico() (string, error) {
 		)
 		return "", fmt.Errorf("SEFAZ StatusServico error (code %d): %s", res, acbrErr)
 	}
-	slog.Debug("NFE_StatusServico success")
+    slog.Debug("NFE_StatusServico success")
 
 	return readBuffer(buffer), nil
+}
+
+// logACBrLogs dumps the ACBrLib logs from the default log directory.
+// This helps debugging by exposing the raw ACBr internal logs after each query.
+func logACBrLogs() {
+    logPath := "/tmp/acbr_logs"
+    entries, err := os.ReadDir(logPath)
+    if err != nil {
+        return
+    }
+    for _, entry := range entries {
+        if entry.IsDir() {
+            continue
+        }
+        fPath := filepath.Join(logPath, entry.Name())
+        content, err := os.ReadFile(fPath)
+        if err != nil {
+            continue
+        }
+        if len(content) == 0 {
+            continue
+        }
+        fmt.Printf("\n========== ACBrLib LOG (%s) ==========\n", entry.Name())
+        fmt.Println(string(content))
+        fmt.Println("======================================================")
+    }
 }
