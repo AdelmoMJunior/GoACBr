@@ -97,11 +97,11 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 		}
 	}
 
-	// 1 hr cooldown check
-	if ctrl.LastQueryAt != nil && time.Since(*ctrl.LastQueryAt) < 1*time.Hour && ctrl.LastNSU == ctrl.MaxNSU {
-		slog.Debug("Skipping company sync due to SEFAZ cooldown", "company_id", companyID)
-		return nil
-	}
+    // 1 hr cooldown check (ignore LastNSU; cooldown is time-based only)
+    if ctrl.LastQueryAt != nil && time.Since(*ctrl.LastQueryAt) < 1*time.Hour {
+        slog.Debug("Skipping company sync due to SEFAZ cooldown", "company_id", companyID)
+        return nil
+    }
 
 	slog.Info("Syncing DFe for company", "company_id", companyID, "last_nsu", ctrl.LastNSU)
 
