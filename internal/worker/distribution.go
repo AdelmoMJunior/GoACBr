@@ -87,15 +87,24 @@ func (w *DistributionWorker) RunOnce(ctx context.Context) {
 }
 
 func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUID) error {
-	ctrl, err := w.distRepo.GetControl(ctx, companyID)
-	if err != nil {
+    ctrl, err := w.distRepo.GetControl(ctx, companyID)
+    if err != nil {
 		// Initialize control if not exists
-		ctrl = &domain.DistributionControl{
-			CompanyID: companyID,
-			LastNSU:   "0",
-			MaxNSU:    "0",
-		}
-	}
+        ctrl = &domain.DistributionControl{
+            CompanyID: companyID,
+            LastNSU:   "0",
+            MaxNSU:    "0",
+        }
+    }
+
+    // Normalize potentially empty NSU fields coming from DB
+    if ctrl.LastNSU == "" {
+        ctrl.LastNSU = "0"
+    }
+    if ctrl.MaxNSU == "" {
+        ctrl.MaxNSU = "0"
+    }
+    slog.Debug("Distribution initial NSU state", "company_id", companyID, "LastNSU", ctrl.LastNSU, "MaxNSU", ctrl.MaxNSU)
 
     // (Cooldown removed) Always start distribution for this company
 
