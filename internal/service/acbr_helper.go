@@ -123,9 +123,9 @@ func configureHandleForCompany(
 		ambiente = "0" // produção
 	}
 
-	// 6. Apply company config via ConfigGravarValor
-	//    Key names match the ACBrLib documentation exactly.
-	configs := map[string]map[string]string{
+    // 6. Apply company config via ConfigGravarValor
+    //    Key names match the ACBrLib documentation exactly.
+    configs := map[string]map[string]string{
 		// [Principal] — Geral.html
 		"Principal": {
 			"TipoResposta": "0", // INI
@@ -161,10 +161,29 @@ func configureHandleForCompany(
 			"ExibirErroSchema":           "1",
 			"EmissaoPathNFe":             "1",
 		},
-		// [DANFE]
-		"DANFE": {
-			"PathPDF": pdfPath,
-		},
+        // [Emissor] — dados do emissor da empresa (preenchidos a partir do registro da empresa)
+        "Emissor": {
+            "CNPJ":        comp.CNPJ,
+            "RazaoSocial": comp.RazaoSocial,
+            "NomeFantasia": comp.NomeFantasia,
+            "WebSite":     "",
+            "Email":       "",
+            "Telefone":    comp.Telefone,
+            "Responsavel": "",
+        },
+        // [DANFE]
+        "DANFE": {
+            "PathPDF": pdfPath,
+        },
+        // [Sistema] — meta da instalação/API
+        "Sistema": {
+            "Nome":        "GoACBr",
+            "Versao":      "1.0",
+            // Data is intentionally fixed to the historical value for compatibility
+            // Replace with time.Now().Format("02/01/2006") if you want current date
+            "Data":        "30/12/1899",
+            "Descricao":   "GoACBr Test",
+        },
 	}
 
 	hd.ApplyCompanyConfig(configs)
