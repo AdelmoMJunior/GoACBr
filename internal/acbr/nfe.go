@@ -162,8 +162,14 @@ func (hd *Handle) DistribuicaoDFePorUltNSU(ufAutor int, cnpj, ultNSU string) (st
 	slog.Debug("Calling NFE_DistribuicaoDFePorUltNSU", "cnpj", cnpj, "ultNSU", ultNSU)
 	res := C.NFE_DistribuicaoDFePorUltNSU(hd.h, C.int(ufAutor), cCNPJ, cUltNSU, buffer, &bufferSize)
 	if res != 0 {
+		// Capture detailed error from ACBr
+		var errBufSize C.int = 8192
+		errBuf := (*C.char)(C.malloc(C.size_t(errBufSize)))
+		defer C.free(unsafe.Pointer(errBuf))
+		C.NFE_UltimoRetorno(hd.h, errBuf, &errBufSize)
+		acbrErr := C.GoString(errBuf)
+		slog.Error("NFE_DistribuicaoDFePorUltNSU failed", "res_code", res, "acbr_error", acbrErr)
 		err := libError(hd.h, "failed to query distribution DFe by UltNSU")
-		slog.Error("NFE_DistribuicaoDFePorUltNSU failed", "error", err)
 		return "", err
 	}
 	slog.Debug("NFE_DistribuicaoDFePorUltNSU success")
