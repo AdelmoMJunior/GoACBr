@@ -106,8 +106,10 @@ func (hd *Handle) Consultar(chave string) (string, error) {
 	cChave, freeChave := allocCString(chave)
 	defer freeChave()
 
-	res := C.NFE_Consultar(hd.h, cChave, C.int(0), buffer, &bufferSize)
-	if res != 0 {
+    res := C.NFE_Consultar(hd.h, cChave, C.int(0), buffer, &bufferSize)
+    // Dump ACBr logs after consult to aid debugging
+    logACBrLogs()
+    if res != 0 {
 		return "", libError(hd.h, fmt.Sprintf("failed to query NFe %s", chave))
 	}
 
@@ -304,5 +306,7 @@ func logACBrLogs() {
         fmt.Printf("\n========== ACBrLib LOG (%s) ==========\n", entry.Name())
         fmt.Println(string(content))
         fmt.Println("======================================================")
+        // Clear the log file after printing to avoid duplicating logs on next call
+        _ = os.Truncate(fPath, 0)
     }
 }
