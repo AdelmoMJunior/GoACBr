@@ -52,14 +52,10 @@ func (s *distributionService) QueryByUltNSU(ctx context.Context, companyID uuid.
 		return nil, err
 	}
 
-	// Verify cooldown
-	ctrl, err := s.distRepo.GetControl(ctx, companyID)
-	if err == nil && ctrl.LastQueryAt != nil {
-		if time.Since(*ctrl.LastQueryAt) < 1*time.Hour && ctrl.MaxNSU == ctrl.LastNSU {
-			// SEFAZ rejects queries within 1 hr if there are no new NSUs
-			return nil, apperror.NewTooManyRequests("SEFAZ cooldown active. Try again later.")
-		}
-	}
+    // Cooldown check for SEFAZ queries is disabled to allow starting distribution
+    // for all registered companies. We still ensure the control exists but do not
+    // block based on LastQueryAt or NSU state.
+    _ , _ = s.distRepo.GetControl(ctx, companyID)
 
 	hd, err := s.pool.GetHandle(ctx, companyID)
 	if err != nil {
