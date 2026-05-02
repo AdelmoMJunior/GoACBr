@@ -120,9 +120,9 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 	// Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
     for i := 0; i < 50; i++ {
         startNSU := ctrl.LastNSU
-        // If this is the initial state (LastNSU=0 and MaxNSU=0), start with an empty NSU
-        if startNSU == "0" && ctrl.MaxNSU == "0" {
-            startNSU = ""
+        // If UltNSU is empty, use a sentinel value that ACBr expects ("0")
+        if startNSU == "" {
+            startNSU = "0"
         }
         if startNSU != ctrl.LastNSU {
             slog.Debug("Using initial NSU for distribution", "company_id", companyID, "startNSU", startNSU)
