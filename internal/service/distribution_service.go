@@ -1,19 +1,18 @@
 package service
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
+    "context"
+    "fmt"
+    "strings"
+    "time"
 
-	"github.com/google/uuid"
+    "github.com/google/uuid"
 
-	"github.com/AdelmoMJunior/GoACBr/internal/acbr"
-	"github.com/AdelmoMJunior/GoACBr/internal/crypto"
-	"github.com/AdelmoMJunior/GoACBr/internal/domain"
-	"github.com/AdelmoMJunior/GoACBr/internal/dto"
-	"github.com/AdelmoMJunior/GoACBr/internal/repository"
-	"github.com/AdelmoMJunior/GoACBr/pkg/apperror"
+    "github.com/AdelmoMJunior/GoACBr/internal/acbr"
+    "github.com/AdelmoMJunior/GoACBr/internal/crypto"
+    "github.com/AdelmoMJunior/GoACBr/internal/domain"
+    "github.com/AdelmoMJunior/GoACBr/internal/dto"
+    "github.com/AdelmoMJunior/GoACBr/internal/repository"
 )
 
 type DistributionService interface {
