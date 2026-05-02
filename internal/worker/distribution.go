@@ -118,8 +118,16 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 	_ = w.distRepo.UpsertControl(ctx, ctrl)
 
 	// Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
-	for i := 0; i < 50; i++ {
-		res, err := w.distService.QueryByUltNSU(ctx, companyID, ctrl.LastNSU)
+    for i := 0; i < 50; i++ {
+        startNSU := ctrl.LastNSU
+        // If this is the initial state (LastNSU=0 and MaxNSU=0), start with an empty NSU
+        if startNSU == "0" && ctrl.MaxNSU == "0" {
+            startNSU = ""
+        }
+        if startNSU != ctrl.LastNSU {
+            slog.Debug("Using initial NSU for distribution", "company_id", companyID, "startNSU", startNSU)
+        }
+        res, err := w.distService.QueryByUltNSU(ctx, companyID, startNSU)
 		if err != nil {
 			// Persist error and stop
 			ctrl.IsRunning = false
