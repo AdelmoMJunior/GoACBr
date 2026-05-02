@@ -143,22 +143,12 @@ func (r *companyRepository) GetCompaniesByUser(ctx context.Context, userID uuid.
 }
 
 func (r *companyRepository) GetCompaniesEligibleForSync(ctx context.Context) ([]domain.Company, error) {
-	var companies []domain.Company
-    query := `
-        SELECT DISTINCT c.*
-        FROM companies c
-        JOIN certificates cert ON c.id = cert.company_id
-        LEFT JOIN distribution_control dc ON c.id = dc.company_id
-        WHERE c.is_active = true
-          AND cert.valid_until > NOW()
-          AND (
-              dc.last_query_at IS NULL 
-              OR dc.last_query_at < NOW() - INTERVAL '1 hour'
-          )
-    `
-	err := r.db.SelectContext(ctx, &companies, query)
-	if err != nil {
-		return nil, err
-	}
-	return companies, nil
+    var companies []domain.Company
+    // Retornar todas as empresas cadastradas sem aplicar filtros de elegibilidade
+    query := `SELECT DISTINCT c.* FROM companies c`
+    err := r.db.SelectContext(ctx, &companies, query)
+    if err != nil {
+        return nil, err
+    }
+    return companies, nil
 }
