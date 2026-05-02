@@ -74,17 +74,25 @@ func configureHandleForCompany(
 	pfxPassword := string(passBytes)
 
 	// 4. Decrypt PFX data and write to temp file
-	pfxBytes, err := cryptoSvc.Decrypt(string(cert.PFXData))
-	if err != nil {
-		return fmt.Errorf("failed to decrypt certificate PFX: %w", err)
-	}
+    pfxBytes, err := cryptoSvc.Decrypt(string(cert.PFXData))
+    if err != nil {
+        return fmt.Errorf("failed to decrypt certificate PFX: %w", err)
+    }
 
-	certsDir := "/tmp/acbr_certs"
-	os.MkdirAll(certsDir, 0700)
-	pfxPath := filepath.Join(certsDir, companyID.String()+".pfx")
-	if err := os.WriteFile(pfxPath, pfxBytes, 0600); err != nil {
-		return fmt.Errorf("failed to write PFX to temp file: %w", err)
-	}
+    certsDir := "/tmp/acbr_certs"
+    os.MkdirAll(certsDir, 0700)
+    pfxPath := filepath.Join(certsDir, companyID.String()+".pfx")
+    if err := os.WriteFile(pfxPath, pfxBytes, 0600); err != nil {
+        return fmt.Errorf("failed to write PFX to temp file: %w", err)
+    }
+
+    // Verify that the PFX file was written and is accessible by the process
+    if fi, err := os.Stat(pfxPath); err == nil {
+        slog.Info("certificate PFX written and accessible", "path", pfxPath, "size", fi.Size())
+    } else {
+        // If we cannot stat the file after writing, surface a precise error
+        return fmt.Errorf("certificate PFX not found after write at %s: %w", pfxPath, err)
+    }
 
 	slog.Info("Configuring ACBr handle for company",
 		"company_id", companyID,

@@ -244,8 +244,20 @@ func (hd *Handle) StatusServico() (string, error) {
 	buffer := (*C.char)(C.malloc(C.size_t(bufferSize)))
 	defer C.free(unsafe.Pointer(buffer))
 
-	slog.Debug("Calling NFE_StatusServico")
-	res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
+    slog.Debug("Calling NFE_StatusServico")
+    res := C.NFE_StatusServico(hd.h, buffer, &bufferSize)
+    // Even on success, fetch the last ACBr retorno to aid debugging in case
+    // the service status is not fully informative (e.g., when cStat=0).
+    if res == 0 {
+        errBufSize := C.int(8192)
+        errBuf := (*C.char)(C.malloc(C.size_t(errBufSize)))
+        if errBuf != nil {
+            defer C.free(unsafe.Pointer(errBuf))
+            C.NFE_UltimoRetorno(hd.h, errBuf, &errBufSize)
+            acbrErr := C.GoString(errBuf)
+            slog.Debug("NFE_StatusServico last retorno", "acbr_err", acbrErr)
+        }
+    }
 	if res != 0 {
 		// Get detailed error from ACBr
 		var errBufSize C.int = 8192
