@@ -169,10 +169,28 @@ func configureHandleForCompany(
 
 	hd.ApplyCompanyConfig(configs)
 
-	// 7. Save the final state back to the handle's INI file
-	if hd.IniPath != "" {
-		hd.ConfigGravar(hd.IniPath)
-	}
+    // 7. Save the final state back to the handle's INI file
+    if hd.IniPath != "" {
+        hd.ConfigGravar(hd.IniPath)
+        // Print complete INI backing file for debugging purposes
+        if iniBytes, err := os.ReadFile(hd.IniPath); err == nil {
+            // Redact sensitive values (e.g., Senha) before printing
+            redacted := string(iniBytes)
+            // Simple line-by-line redaction for lines starting with key Senha=
+            lines := strings.Split(redacted, "\n")
+            for i, line := range lines {
+                if strings.HasPrefix(strings.TrimSpace(line), "Senha=") {
+                    lines[i] = "Senha=******"
+                }
+            }
+            redacted = strings.Join(lines, "\n")
+            fmt.Println("\n=== ACBr INI (complete) printing (redacted) ===")
+            fmt.Println(redacted)
+            fmt.Println("=== END ACBr INI (complete) ===\n")
+        } else {
+            slog.Warn("failed reading ACBr INI file after save", "path", hd.IniPath, "error", err)
+        }
+    }
 
 	hd.ConfiguredFor = companyID
 	slog.Info("ACBr handle configured successfully", "company_id", companyID)
