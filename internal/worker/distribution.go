@@ -117,16 +117,21 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 	ctrl.UpdatedAt = now
 	_ = w.distRepo.UpsertControl(ctx, ctrl)
 
-    // Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
-    for i := 0; i < 50; i++ {
-        // Determine UltNSU argument for this batch. If initial state (LastNSU=0 and MaxNSU=0),
-        // pass an empty string to let ACBr decide the start point.
-        ultArg := ctrl.LastNSU
-        if ctrl.LastNSU == "0" && ctrl.MaxNSU == "0" {
-            ultArg = ""
-        }
-        slog.Debug("Using UltNSU for distribution", "company_id", companyID, "ultNSU", ultArg)
-        res, err := w.distService.QueryByUltNSU(ctx, companyID, ultArg)
+	// Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
+	for i := 0; i < 50; i++ {
+		// Determine UltNSU argument for this batch. If initial state (LastNSU=0 and MaxNSU=0),
+		// pass an empty string to let ACBr decide the start point.
+		ultArg := ctrl.LastNSU
+		if ctrl.LastNSU == "0" && ctrl.MaxNSU == "0" {
+			ultArg = ""
+		}
+		slog.Debug("Using UltNSU for distribution", "company_id", companyID, "ultNSU", ultArg)
+		res, err := w.distService.QueryByUltNSU(ctx, companyID, ultArg)
+		// Fallback: if failed and we used empty string, try with "0"
+		if err != nil && ultArg == "" {
+			slog.Warn("Distribution query failed with empty NSU, retrying with '0'", "company_id", companyID)
+			res, err = w.distService.QueryByUltNSU(ctx, companyID, "0")
+		}
 		if err != nil {
 			// Persist error and stop
 			ctrl.IsRunning = false
