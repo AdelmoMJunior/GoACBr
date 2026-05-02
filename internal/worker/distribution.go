@@ -117,17 +117,16 @@ func (w *DistributionWorker) syncCompany(ctx context.Context, companyID uuid.UUI
 	ctrl.UpdatedAt = now
 	_ = w.distRepo.UpsertControl(ctx, ctrl)
 
-	// Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
+    // Loop to fetch all NSUs until LastNSU == MaxNSU (max 50 batches per pass)
     for i := 0; i < 50; i++ {
-        startNSU := ctrl.LastNSU
-        // If UltNSU is empty, use a sentinel value that ACBr expects ("0")
-        if startNSU == "" {
-            startNSU = "0"
+        // Determine UltNSU argument for this batch. If initial state (LastNSU=0 and MaxNSU=0),
+        // pass an empty string to let ACBr decide the start point.
+        ultArg := ctrl.LastNSU
+        if ctrl.LastNSU == "0" && ctrl.MaxNSU == "0" {
+            ultArg = ""
         }
-        if startNSU != ctrl.LastNSU {
-            slog.Debug("Using initial NSU for distribution", "company_id", companyID, "startNSU", startNSU)
-        }
-        res, err := w.distService.QueryByUltNSU(ctx, companyID, startNSU)
+        slog.Debug("Using UltNSU for distribution", "company_id", companyID, "ultNSU", ultArg)
+        res, err := w.distService.QueryByUltNSU(ctx, companyID, ultArg)
 		if err != nil {
 			// Persist error and stop
 			ctrl.IsRunning = false
